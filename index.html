@@ -1,0 +1,1691 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>加工廠業務用｜加工成本計算</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--danger:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+header{position:sticky;top:0;z-index:5;background:#111827;color:#fff;padding:15px 16px}
+h1{font-size:20px;margin:0 0 3px}.sub{font-size:12px;opacity:.75}
+nav{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:9px;background:#fff;position:sticky;top:68px;z-index:4;border-bottom:1px solid var(--line)}
+nav button{border:0;background:#f3f4f6;border-radius:9px;padding:9px 3px;font-weight:800;font-size:11px}
+nav button.active{background:#2563eb;color:#fff;box-shadow:0 2px 8px #2563eb33}
+main{max-width:760px;margin:auto;padding:13px}.page{display:none}.page.active{display:block}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:12px;box-shadow:0 2px 8px #00000008}
+h2{font-size:17px;margin:0 0 13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:12px;color:var(--muted);font-weight:800;display:block;margin-bottom:5px}
+input,select{width:100%;padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;background:#fff}
+button.primary{width:100%;padding:13px;border:0;border-radius:11px;background:#111827;color:#fff;font-size:16px;font-weight:900;margin-top:12px}
+button.secondary{padding:9px 12px;border:1px solid #d1d5db;background:#fff;border-radius:9px;font-weight:800}
+.result{background:#f9fafb;border-radius:12px;padding:13px;margin-top:12px}.big{font-size:30px;font-weight:900}
+.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}
+.badge{display:inline-block;padding:4px 7px;background:#eef2ff;border-radius:7px;font-size:11px;font-weight:800}
+.history-item{padding:12px 0;border-bottom:1px solid var(--line)}.history-item:last-child{border:0}
+.actions{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}.danger{color:var(--danger)!important}
+.empty{text-align:center;color:var(--muted);padding:25px}.formula{font-size:12px;color:var(--muted);line-height:1.6}
+.sheet{border:2px solid #374151;background:#f9fafb;position:relative;overflow:hidden;margin-top:12px}
+.piece{position:absolute;border:2px solid #111827;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;text-align:center;overflow:hidden}
+.notice{font-size:12px;color:#92400e;background:#fffbeb;border-radius:10px;padding:9px;margin-top:10px}
+@media(max-width:620px){nav{grid-template-columns:repeat(5,minmax(76px,1fr));overflow-x:auto}nav button{font-size:10px;white-space:nowrap}.grid{grid-template-columns:1fr}}
+input::placeholder{color:#9ca3af} input:focus::placeholder{opacity:.45}
+#calcLoading{position:fixed;inset:0;background:rgba(255,255,255,.72);backdrop-filter:blur(2px);z-index:9999;display:none;align-items:center;justify-content:center}
+#calcLoading.show{display:flex}
+.loading-box{background:#111827;color:#fff;border-radius:16px;padding:20px 28px;min-width:170px;text-align:center;box-shadow:0 10px 30px #0003}
+.spinner{width:34px;height:34px;border:4px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 10px}
+.loading-text{font-size:15px;font-weight:800}
+.layout-loading-box{min-width:280px;max-width:calc(100vw - 36px);padding:22px 24px}
+.progress-track{height:10px;background:#374151;border-radius:999px;overflow:hidden;margin:14px 0 9px}
+.progress-bar{height:100%;width:0%;background:#fff;border-radius:999px;transition:width .18s ease}
+.loading-progress,.loading-eta{font-size:13px;line-height:1.5;color:#d1d5db}
+.loading-progress{font-weight:800}
+.loading-eta{margin-top:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.piece-row{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.piece-title{grid-column:1/-1;font-weight:900;margin-top:5px}
+.remove-piece{grid-column:1/-1;padding:7px 10px;border:1px solid #d1d5db;background:#fff;border-radius:9px;font-weight:800}
+.add-piece{width:100%;padding:11px;border:2px dashed #9ca3af;background:#fff;border-radius:11px;font-size:15px;font-weight:900;margin-top:10px}
+@media(max-width:460px){.piece-row{grid-template-columns:1fr}}
+.layout-board{box-shadow:inset 0 0 0 1px #cbd5e1}.layout-board>div{min-width:0;min-height:0}\n
+
+ .loss-results{
+  margin-top:14px;
+  background:#f8fafc;
+  border-radius:16px;
+  padding:4px 20px;
+  overflow:hidden;
+}
+.loss-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(120px,auto) 72px;
+  align-items:center;
+  min-height:64px;
+  column-gap:12px;
+  border-bottom:1px solid #e2e8f0;
+}
+.loss-row:last-child{border-bottom:0}
+.loss-name,.loss-row strong,.loss-unit{
+  font-size:18px !important;
+  line-height:1.35 !important;
+}
+.loss-name{
+  color:#334155;
+  font-weight:600;
+  white-space:nowrap;
+}
+.loss-row strong{
+  color:#0f172a;
+  font-weight:800 !important;
+  text-align:right;
+  white-space:nowrap;
+}
+.loss-unit{
+  color:#64748b;
+  text-align:left;
+  white-space:nowrap;
+}
+.loss-row-main{min-height:64px !important}
+.loss-detail{padding:10px 0 4px;color:#64748b;font-size:13px;line-height:1.8;word-break:break-word}
+@media(max-width:600px){
+  .loss-results{padding:4px 14px;border-radius:14px}
+  .loss-row{
+    grid-template-columns:minmax(0,1fr) minmax(90px,auto) 58px;
+    min-height:60px;
+    column-gap:8px;
+  }
+  .loss-name,.loss-row strong,.loss-unit{
+    font-size:18px !important;
+  }
+  .loss-row-main{min-height:60px !important}
+  .loss-detail{font-size:12px}
+}
+
+
+/* 5.7 排版最佳化 */
+.inline-option{display:flex;align-items:center}
+.inline-option label{margin:0;display:flex;align-items:center;gap:7px}
+.inline-option input[type="checkbox"]{width:auto}
+.remnant-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.remnant-item:last-child{border-bottom:0}
+.remnant-cai{margin-left:6px;color:var(--muted);font-size:12px}
+.layout-board .piece{font-size:12px}
+.remnant-overlay{position:absolute;box-sizing:border-box;border:2px solid #ef4444;background:rgba(239,68,68,.035);display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none;z-index:3;color:#ef4444;font-size:11px;font-weight:800;line-height:1.15;text-shadow:0 1px 2px #fff;overflow:hidden;padding:2px}.remnant-overlay span{color:#ef4444;white-space:nowrap}
+@media(max-width:600px){
+  .remnant-item{font-size:13px}
+  .remnant-item button{padding:7px 9px;font-size:12px}
+}
+
+/* 5.18 全系統介面統一：以花紋版配料的資訊層級為基準 */
+.page-head{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 4px 14px #0000000d}.page-head h2{margin:0 0 4px;font-size:20px}.page-head p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}.section-label{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;font-weight:900;color:#1e3a5f}.section-label b{background:#1e3a5f;color:#fff;border-radius:99px;padding:3px 7px}.standard-card{border:1px solid #dbe3ec;border-radius:16px;box-shadow:0 3px 12px #00000008}.standard-card h2{color:#173f68}.standard-card .primary{background:#173f68}.standard-card .primary:hover{background:#0f2745}.case-image-card{margin-top:12px;border:1px solid #dbe3ec;border-radius:16px;background:#fff;padding:12px}.case-image-wrap{border:1px solid #cbd5e1;border-radius:12px;overflow:auto;background:#f8fafc}.case-image-wrap img{display:block;width:100%;height:auto}.case-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.case-actions button{min-height:44px}.case-caption{font-size:12px;color:#64748b;line-height:1.6;margin-top:8px}.feature-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.feature-chip{border:1px solid #dbe3ec;background:#f8fafc;border-radius:12px;padding:9px;text-align:center;font-size:11px;color:#334155}.feature-chip b{display:block;font-size:13px;color:#173f68;margin-bottom:3px}@media(max-width:620px){.feature-strip{grid-template-columns:1fr 1fr}.page-head{padding:14px}.page-head h2{font-size:18px}}
+
+/* 5.17 花紋版配料：以紋路連續為核心的專用介面 */
+.pattern-hero{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:18px;margin-bottom:12px}
+.pattern-hero h2{margin:0 0 5px;font-size:20px}.pattern-hero p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}
+.pattern-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:12px}
+.pattern-upload{border:2px dashed #93c5fd;background:#eff6ff;border-radius:14px;padding:14px;text-align:center;cursor:pointer}
+.pattern-upload input{display:none}.upload-btn{display:inline-block;background:#2563eb;color:#fff;border-radius:10px;padding:10px 16px;font-weight:900}
+.pattern-preview{margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid #cbd5e1;background:#f8fafc;min-height:170px;display:flex;align-items:center;justify-content:center}
+.pattern-preview img{display:block;max-width:100%;max-height:300px;object-fit:contain}
+.pattern-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #dbe3ec;border-radius:12px;overflow:hidden;font-size:12px}
+.pattern-table th,.pattern-table td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle}.pattern-table th{background:#f1f5f9;font-weight:900}.pattern-table tr:last-child td{border-bottom:0}
+.pattern-table input{padding:8px;font-size:14px;border-radius:8px}.pattern-table .small-input{width:76px}.pattern-table .name-input{min-width:90px}
+.pattern-result{background:#fff;border:1px solid #dbe3ec;border-radius:16px;padding:12px;margin-top:12px}
+.pattern-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.pattern-stat{background:#f8fafc;border-radius:12px;padding:10px;text-align:center}.pattern-stat b{display:block;font-size:19px}.pattern-stat span{font-size:11px;color:#64748b}
+.pattern-board{position:relative;background:#f8fafc;border:3px solid #1e3a5f;overflow:hidden;margin:auto;box-shadow:0 4px 14px #0001}.pattern-board img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:.96}
+.pattern-cut{position:absolute;border:2px dashed #dc2626;display:flex;align-items:center;justify-content:center;text-align:center;color:#991b1b;font-weight:900;background:rgba(255,255,255,.12);text-shadow:0 1px 2px #fff;overflow:hidden}.pattern-cut .cut-label{background:rgba(255,255,255,.84);border-radius:8px;padding:4px 6px;font-size:11px}
+.pattern-remnant{position:absolute;border:2px solid #ef4444;color:#dc2626;background:rgba(239,68,68,.08);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;pointer-events:none}
+.pattern-explain{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.explain-card{border:1px solid #dbe3ec;border-radius:14px;padding:12px;background:#fff}.explain-card h3{margin:0 0 8px;font-size:15px}.explain-list{margin:0;padding-left:20px;font-size:12px;line-height:1.8}
+.pattern-goals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.goal{border-top:3px solid #1e3a5f;padding:9px 5px;text-align:center;font-size:11px}.goal b{display:block;font-size:13px;margin-bottom:3px}
+.island-preview{height:210px;position:relative;background:linear-gradient(#f8fafc,#eef2f7);border-radius:12px;overflow:hidden}.island-top,.island-front,.island-side{position:absolute;border:2px solid #7c2d12;overflow:hidden;background:#f7f2e8}.island-top{width:70%;height:34%;left:12%;top:20%;transform:skewX(-18deg);}.island-front{width:70%;height:32%;left:15%;top:52%;}.island-side{width:17%;height:32%;right:7%;top:35%;transform:skewY(-18deg)}.island-top img,.island-front img,.island-side img{width:100%;height:100%;object-fit:cover}.island-tag{position:absolute;background:#7c2d12;color:#fff;border-radius:99px;padding:3px 8px;font-size:10px;font-weight:900}
+@media(max-width:720px){.pattern-grid,.pattern-explain{grid-template-columns:1fr}.pattern-summary{grid-template-columns:repeat(2,1fr)}.pattern-goals{grid-template-columns:1fr 1fr}.pattern-table{font-size:11px}.pattern-table th,.pattern-table td{padding:6px}}
+
+/* ===== 5.20 App UI：S26 Ultra / Mobile-first ===== */
+:root{
+  --app-navy:#0f2745;--app-blue:#173f68;--app-blue2:#2563eb;
+  --app-red:#dc2626;--app-green:#16a34a;--app-surface:#ffffff;
+}
+body{padding-bottom:0}
+header{background:linear-gradient(135deg,var(--app-navy),var(--app-blue));}
+main{padding-bottom:24px}
+.app-bottom-nav{
+  display:none;
+  position:fixed;left:0;right:0;bottom:0;z-index:50;
+  padding:7px 8px calc(7px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.96);backdrop-filter:blur(16px);
+  border-top:1px solid #dbe3ec;box-shadow:0 -6px 22px #00000012;
+}
+.app-bottom-nav .app-tab{
+  flex:1;border:0;background:transparent;border-radius:12px;
+  min-height:52px;padding:5px 2px;color:#64748b;font-weight:800;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+}
+.app-bottom-nav .app-tab .ico{font-size:20px;line-height:1}
+.app-bottom-nav .app-tab .txt{font-size:10px;line-height:1.1}
+.app-bottom-nav .app-tab.active{color:#173f68;background:#eff6ff}
+.app-top-tools{display:flex;align-items:center;gap:7px;margin-top:9px}
+.app-pill{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;
+  background:#ffffff18;color:#dbeafe;border:1px solid #ffffff22;font-size:10px;font-weight:800
+}
+.pattern-direction-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;
+  background:#fff1f2;color:#b91c1c;font-size:11px;font-weight:900
+}
+.cut-direction-arrow{
+  position:absolute;z-index:5;color:#b91c1c;font-size:12px;font-weight:900;
+  background:#fff8;border-radius:999px;padding:2px 6px;pointer-events:none
+}
+.layout-board .piece{border-color:#173f68;background:#ffffffee}
+.layout-board .piece .piece-meta{font-size:10px;color:#64748b;margin-top:2px}
+.layout-score-card{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px
+}
+.layout-score-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px;text-align:center}
+.layout-score-item b{display:block;font-size:18px;color:#173f68}
+.layout-score-item span{display:block;font-size:10px;color:#64748b;margin-top:2px}
+.optimization-note{
+  display:flex;gap:8px;align-items:flex-start;background:#eff6ff;border:1px solid #bfdbfe;
+  color:#1e3a5f;border-radius:12px;padding:10px;font-size:12px;line-height:1.6;margin-top:10px
+}
+.pattern-board-legend{
+  display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;font-size:10px;color:#475569
+}
+.pattern-board-legend span{padding:4px 7px;border-radius:999px;background:#f8fafc;border:1px solid #e2e8f0}
+.case-sheet-meta{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px
+}
+.case-sheet-meta div{background:#f8fafc;border-radius:10px;padding:8px;text-align:center}
+.case-sheet-meta b{display:block;font-size:14px;color:#173f68}
+.case-sheet-meta span{font-size:10px;color:#64748b}
+@media(max-width:720px){
+  body{padding-bottom:76px}
+  header{position:sticky;top:0}
+  nav{display:none}
+  .app-bottom-nav{display:flex}
+  main{padding:10px 10px 20px}
+  .page-head{border-radius:14px}
+  .card{border-radius:14px;padding:13px}
+  .layout-score-card{grid-template-columns:repeat(2,1fr)}
+  .case-sheet-meta{grid-template-columns:repeat(2,1fr)}
+}
+@media(min-width:721px){
+  .app-bottom-nav{display:none!important}
+}
+
+
+/* 5.21 interactive cutting editor */
+.editor-toolbar{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.editor-btn{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:8px 11px;font-weight:800;color:#173f68}
+.editor-btn.primary{background:#173f68;color:#fff}
+.editor-btn.warn{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.board-editor-wrap{overflow:auto;border:1px solid #dbe3ec;border-radius:14px;background:#eef2f7;padding:10px}
+.board-editor{position:relative;background:#f8fafc;border:2px solid #173f68;touch-action:none}
+.editor-piece{position:absolute;box-sizing:border-box;border:2px solid #173f68;background:#ffffffed;border-radius:5px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:grab;user-select:none;touch-action:none}
+.editor-piece.selected{border:3px solid #dc2626;box-shadow:0 0 0 2px #fecaca}
+.editor-piece.locked{border-style:dashed;cursor:not-allowed}
+.ep-name{font-weight:900;font-size:11px;color:#173f68}.ep-size{font-size:9px;color:#475569}.ep-rotate{font-size:9px;color:#b91c1c}
+.editor-sidepanel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.editor-info,.cad-export-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:9px;font-size:12px}
+.editor-help{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a5f;border-radius:11px;padding:10px;font-size:12px;line-height:1.55;margin-top:10px}
+.editor-warning{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:11px;padding:10px;font-size:12px;line-height:1.55;margin-top:10px}
+@media(max-width:720px){.editor-sidepanel{grid-template-columns:1fr}.editor-toolbar{position:sticky;top:68px;z-index:8;background:#fff;padding:6px;border-radius:10px;box-shadow:0 2px 10px #0001}}
+
+/* ===== 5.21.2 花紋中島：實際原板裁切來源預覽 ===== */
+.pattern-island-card{background:#fff;border:1px solid #dbe3ec;border-radius:16px;padding:14px;margin-top:12px}
+.pattern-island-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pattern-island-head h2{margin:0;color:#0f2745}
+.pattern-island-tools{display:flex;gap:6px;flex-wrap:wrap}
+.pattern-tool-chip{border:1px solid #cbd5e1;background:#f8fafc;color:#173f68;border-radius:999px;padding:7px 10px;font-weight:900;font-size:11px}
+.island-status{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.island-status span{padding:6px 9px;border-radius:999px;background:#f8fafc;border:1px solid #dbe3ec;font-size:10px;font-weight:900}
+.island-status .ok{color:#166534;border-color:#bbf7d0;background:#f0fdf4}.island-status .warn{color:#991b1b;border-color:#fecaca;background:#fef2f2}
+.island-stage{position:relative;background:linear-gradient(180deg,#f8fafc,#edf2f7);border-radius:14px;min-height:370px;overflow:hidden;margin-top:10px;padding:22px}
+.island-model{position:relative;width:min(920px,100%);height:330px;margin:auto}
+.island-panel{position:absolute;overflow:hidden;border:2px solid #173f68;background:#e5e7eb;box-shadow:0 8px 18px #0002}
+.island-panel .crop{position:absolute;inset:0;background-repeat:no-repeat;background-color:#e5e7eb}
+.island-top{left:9%;top:8%;width:68%;height:43%;z-index:3;clip-path:polygon(3% 0,100% 0,96% 100%,0 100%)}
+.island-front{left:9%;top:50%;width:65%;height:38%;z-index:2}
+.island-side{left:74%;top:31%;width:16%;height:57%;z-index:1;clip-path:polygon(15% 0,100% 0,84% 100%,0 100%)}
+.island-overlay{position:absolute;inset:0;z-index:10;pointer-events:none}
+.island-label{position:absolute;background:#fff;border:2px solid #dc2626;color:#0f2745;border-radius:10px;padding:7px 10px;font-weight:900;font-size:12px;box-shadow:0 3px 10px #0002;line-height:1.25}
+.island-label b{color:#b91c1c}
+.island-vein{position:absolute;color:#173f68;font-weight:1000;font-size:12px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;background:#ffffffd9;border-radius:999px;padding:3px 7px}
+.island-seam{position:absolute;border-top:3px solid #dc2626;z-index:12;pointer-events:none;box-shadow:0 0 0 2px #fff8}
+.island-seam.side{border-top:0;border-left:3px solid #dc2626}
+.island-note{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.island-note div{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;text-align:center;font-size:11px}
+.island-note b{display:block;color:#173f68;font-size:14px;margin-bottom:2px}
+.pattern-cut-visual{position:relative;border-radius:14px;background:#f8fafc;border:1px solid #dbe3ec;padding:10px}
+.pattern-cut-visual .cut-board{position:relative;margin:auto;border:3px solid #173f68;background:#eef2f7;overflow:hidden}
+.pattern-cut-visual .cut-source{position:absolute;inset:0;background-repeat:no-repeat;background-size:100% 100%;opacity:.88}
+.pattern-cut-visual .cut-line{position:absolute;border:3px dashed #dc2626;box-sizing:border-box;z-index:3;box-shadow:0 0 0 2px #fff8}
+.pattern-cut-visual .cut-label{position:absolute;z-index:5;background:#0f2745;color:#fff;border-radius:7px;padding:4px 6px;font-size:10px;font-weight:900;white-space:nowrap}
+.pattern-cut-visual .vein-arrow{position:absolute;z-index:6;color:#173f68;font-weight:1000;background:#ffffffd9;border-radius:999px;padding:3px 7px;font-size:10px}
+.pattern-legend-new{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.pattern-legend-new span{padding:6px 9px;border-radius:999px;font-size:10px;font-weight:900;background:#f8fafc;border:1px solid #dbe3ec}
+.pattern-legend-new .red{border-color:#fecaca;color:#b91c1c}.pattern-legend-new .blue{border-color:#bfdbfe;color:#173f68}.pattern-legend-new .gold{border-color:#fde68a;color:#92400e}
+@media(max-width:720px){
+ .island-stage{padding:10px;min-height:330px;overflow:auto}
+ .island-model{min-width:680px;transform:scale(.84);transform-origin:top left;margin-bottom:-45px}
+ .island-note{grid-template-columns:1fr}
+ .pattern-island-head{align-items:flex-start}
+}
+.patternTable input[type='number']::placeholder{color:#9aa3ad;opacity:1}.patternTable input[type='number']{color:#172033}
+/* 5.21.8：花紋版配料輸入尺寸與紋路控制 */
+.pattern-table .pattern-size-input{
+  width:82px;
+  min-width:82px;
+  height:42px;
+  padding:7px 8px;
+  font-size:15px;
+  font-weight:700;
+  box-sizing:border-box;
+}
+.pattern-table .pattern-qty-input{
+  width:52px;
+  min-width:52px;
+  height:42px;
+  padding:7px 6px;
+  font-size:15px;
+  font-weight:700;
+  box-sizing:border-box;
+}
+.pattern-table select[data-k="vein"]{
+  min-width:190px;
+  height:44px;
+  padding:6px 30px 6px 10px;
+  font-size:15px;
+  font-weight:700;
+  border-radius:9px;
+  box-sizing:border-box;
+}
+.pattern-table input[data-k="rotate"]{
+  width:24px;
+  height:24px;
+  transform:scale(1.08);
+  accent-color:#1e3a5f;
+}
+.pattern-table input::placeholder{color:#9aa3ad;opacity:1}
+@media(max-width:600px){
+  .pattern-table .pattern-size-input{width:82px;min-width:82px}
+  .pattern-table .pattern-qty-input{width:52px;min-width:52px}
+  .pattern-table select[data-k="vein"]{min-width:190px;height:46px;font-size:15px}
+}
+
+/* 5.21.8：手機版移除最上方藍色 Header，讓計算內容直接開始 */
+@media(max-width:620px){
+  body > header{
+    display:none !important;
+  }
+  body > nav{
+    top:0 !important;
+  }
+}
+
+/* 5.21.8：網頁版與手機版皆移除最上方藍色 Header，不佔用預覽畫面 */
+header,
+.app-header,
+.top-header,
+.hero-header,
+.header-bar{
+  display:none !important;
+}
+body{
+  padding-top:0 !important;
+}
+</style>
+<style>
+.calc-field-error{border-color:#dc2626!important;background:#fff7f7!important;box-shadow:0 0 0 3px #fecaca66!important}
+.input-error-hint{display:block;margin-top:4px;color:#b91c1c;font-size:11px;font-weight:800}
+.calc-error-modal{position:fixed;inset:0;z-index:2000;display:none;align-items:center;justify-content:center;background:#0f172a66;padding:18px}
+.calc-error-modal.show{display:flex}.calc-error-box{width:min(430px,100%);background:#fff;border-radius:16px;padding:18px;box-shadow:0 20px 50px #0004}
+.calc-error-box h3{margin:0 0 8px;color:#991b1b}.calc-error-box p{margin:0 0 12px;color:#334155;line-height:1.6;font-size:13px}
+.calc-error-list{margin:0 0 14px;padding-left:20px;color:#475569;font-size:12px;line-height:1.7}.calc-error-box button{width:100%;border:0;border-radius:10px;background:#173f68;color:#fff;padding:11px;font-weight:900}
+.input-help-hint{margin-top:3px;color:#64748b;font-size:10px}
+</style></head>
+<style>
+:root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--danger:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+header{position:sticky;top:0;z-index:5;background:#111827;color:#fff;padding:15px 16px}
+h1{font-size:20px;margin:0 0 3px}.sub{font-size:12px;opacity:.75}
+nav{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:9px;background:#fff;position:sticky;top:68px;z-index:4;border-bottom:1px solid var(--line)}
+nav button{border:0;background:#f3f4f6;border-radius:9px;padding:9px 3px;font-weight:800;font-size:11px}
+nav button.active{background:#2563eb;color:#fff;box-shadow:0 2px 8px #2563eb33}
+main{max-width:760px;margin:auto;padding:13px}.page{display:none}.page.active{display:block}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:12px;box-shadow:0 2px 8px #00000008}
+h2{font-size:17px;margin:0 0 13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:12px;color:var(--muted);font-weight:800;display:block;margin-bottom:5px}
+input,select{width:100%;padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:16px;background:#fff}
+button.primary{width:100%;padding:13px;border:0;border-radius:11px;background:#111827;color:#fff;font-size:16px;font-weight:900;margin-top:12px}
+button.secondary{padding:9px 12px;border:1px solid #d1d5db;background:#fff;border-radius:9px;font-weight:800}
+.result{background:#f9fafb;border-radius:12px;padding:13px;margin-top:12px}.big{font-size:30px;font-weight:900}
+.row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}
+.badge{display:inline-block;padding:4px 7px;background:#eef2ff;border-radius:7px;font-size:11px;font-weight:800}
+.history-item{padding:12px 0;border-bottom:1px solid var(--line)}.history-item:last-child{border:0}
+.actions{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}.danger{color:var(--danger)!important}
+.empty{text-align:center;color:var(--muted);padding:25px}.formula{font-size:12px;color:var(--muted);line-height:1.6}
+.sheet{border:2px solid #374151;background:#f9fafb;position:relative;overflow:hidden;margin-top:12px}
+.piece{position:absolute;border:2px solid #111827;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;text-align:center;overflow:hidden}
+.notice{font-size:12px;color:#92400e;background:#fffbeb;border-radius:10px;padding:9px;margin-top:10px}
+@media(max-width:620px){nav{grid-template-columns:repeat(5,minmax(76px,1fr));overflow-x:auto}nav button{font-size:10px;white-space:nowrap}.grid{grid-template-columns:1fr}}
+input::placeholder{color:#9ca3af} input:focus::placeholder{opacity:.45}
+#calcLoading{position:fixed;inset:0;background:rgba(255,255,255,.72);backdrop-filter:blur(2px);z-index:9999;display:none;align-items:center;justify-content:center}
+#calcLoading.show{display:flex}
+.loading-box{background:#111827;color:#fff;border-radius:16px;padding:20px 28px;min-width:170px;text-align:center;box-shadow:0 10px 30px #0003}
+.spinner{width:34px;height:34px;border:4px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 10px}
+.loading-text{font-size:15px;font-weight:800}
+.layout-loading-box{min-width:280px;max-width:calc(100vw - 36px);padding:22px 24px}
+.progress-track{height:10px;background:#374151;border-radius:999px;overflow:hidden;margin:14px 0 9px}
+.progress-bar{height:100%;width:0%;background:#fff;border-radius:999px;transition:width .18s ease}
+.loading-progress,.loading-eta{font-size:13px;line-height:1.5;color:#d1d5db}
+.loading-progress{font-weight:800}
+.loading-eta{margin-top:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.piece-row{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.piece-title{grid-column:1/-1;font-weight:900;margin-top:5px}
+.remove-piece{grid-column:1/-1;padding:7px 10px;border:1px solid #d1d5db;background:#fff;border-radius:9px;font-weight:800}
+.add-piece{width:100%;padding:11px;border:2px dashed #9ca3af;background:#fff;border-radius:11px;font-size:15px;font-weight:900;margin-top:10px}
+@media(max-width:460px){.piece-row{grid-template-columns:1fr}}
+.layout-board{box-shadow:inset 0 0 0 1px #cbd5e1}.layout-board>div{min-width:0;min-height:0}\n
+
+ .loss-results{
+  margin-top:14px;
+  background:#f8fafc;
+  border-radius:16px;
+  padding:4px 20px;
+  overflow:hidden;
+}
+.loss-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(120px,auto) 72px;
+  align-items:center;
+  min-height:64px;
+  column-gap:12px;
+  border-bottom:1px solid #e2e8f0;
+}
+.loss-row:last-child{border-bottom:0}
+.loss-name,.loss-row strong,.loss-unit{
+  font-size:18px !important;
+  line-height:1.35 !important;
+}
+.loss-name{
+  color:#334155;
+  font-weight:600;
+  white-space:nowrap;
+}
+.loss-row strong{
+  color:#0f172a;
+  font-weight:800 !important;
+  text-align:right;
+  white-space:nowrap;
+}
+.loss-unit{
+  color:#64748b;
+  text-align:left;
+  white-space:nowrap;
+}
+.loss-row-main{min-height:64px !important}
+.loss-detail{padding:10px 0 4px;color:#64748b;font-size:13px;line-height:1.8;word-break:break-word}
+@media(max-width:600px){
+  .loss-results{padding:4px 14px;border-radius:14px}
+  .loss-row{
+    grid-template-columns:minmax(0,1fr) minmax(90px,auto) 58px;
+    min-height:60px;
+    column-gap:8px;
+  }
+  .loss-name,.loss-row strong,.loss-unit{
+    font-size:18px !important;
+  }
+  .loss-row-main{min-height:60px !important}
+  .loss-detail{font-size:12px}
+}
+
+
+/* 5.7 排版最佳化 */
+.inline-option{display:flex;align-items:center}
+.inline-option label{margin:0;display:flex;align-items:center;gap:7px}
+.inline-option input[type="checkbox"]{width:auto}
+.remnant-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.remnant-item:last-child{border-bottom:0}
+.remnant-cai{margin-left:6px;color:var(--muted);font-size:12px}
+.layout-board .piece{font-size:12px}
+.remnant-overlay{position:absolute;box-sizing:border-box;border:2px solid #ef4444;background:rgba(239,68,68,.035);display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none;z-index:3;color:#ef4444;font-size:11px;font-weight:800;line-height:1.15;text-shadow:0 1px 2px #fff;overflow:hidden;padding:2px}.remnant-overlay span{color:#ef4444;white-space:nowrap}
+@media(max-width:600px){
+  .remnant-item{font-size:13px}
+  .remnant-item button{padding:7px 9px;font-size:12px}
+}
+
+/* 5.18 全系統介面統一：以花紋版配料的資訊層級為基準 */
+.page-head{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 4px 14px #0000000d}.page-head h2{margin:0 0 4px;font-size:20px}.page-head p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}.section-label{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;font-weight:900;color:#1e3a5f}.section-label b{background:#1e3a5f;color:#fff;border-radius:99px;padding:3px 7px}.standard-card{border:1px solid #dbe3ec;border-radius:16px;box-shadow:0 3px 12px #00000008}.standard-card h2{color:#173f68}.standard-card .primary{background:#173f68}.standard-card .primary:hover{background:#0f2745}.case-image-card{margin-top:12px;border:1px solid #dbe3ec;border-radius:16px;background:#fff;padding:12px}.case-image-wrap{border:1px solid #cbd5e1;border-radius:12px;overflow:auto;background:#f8fafc}.case-image-wrap img{display:block;width:100%;height:auto}.case-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.case-actions button{min-height:44px}.case-caption{font-size:12px;color:#64748b;line-height:1.6;margin-top:8px}.feature-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.feature-chip{border:1px solid #dbe3ec;background:#f8fafc;border-radius:12px;padding:9px;text-align:center;font-size:11px;color:#334155}.feature-chip b{display:block;font-size:13px;color:#173f68;margin-bottom:3px}@media(max-width:620px){.feature-strip{grid-template-columns:1fr 1fr}.page-head{padding:14px}.page-head h2{font-size:18px}}
+
+/* 5.17 花紋版配料：以紋路連續為核心的專用介面 */
+.pattern-hero{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:18px;margin-bottom:12px}
+.pattern-hero h2{margin:0 0 5px;font-size:20px}.pattern-hero p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}
+.pattern-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:12px}
+.pattern-upload{border:2px dashed #93c5fd;background:#eff6ff;border-radius:14px;padding:14px;text-align:center;cursor:pointer}
+.pattern-upload input{display:none}.upload-btn{display:inline-block;background:#2563eb;color:#fff;border-radius:10px;padding:10px 16px;font-weight:900}
+.pattern-preview{margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid #cbd5e1;background:#f8fafc;min-height:170px;display:flex;align-items:center;justify-content:center}
+.pattern-preview img{display:block;max-width:100%;max-height:300px;object-fit:contain}
+.pattern-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #dbe3ec;border-radius:12px;overflow:hidden;font-size:12px}
+.pattern-table th,.pattern-table td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle}.pattern-table th{background:#f1f5f9;font-weight:900}.pattern-table tr:last-child td{border-bottom:0}
+.pattern-table input{padding:8px;font-size:14px;border-radius:8px}.pattern-table .small-input{width:76px}.pattern-table .name-input{min-width:90px}
+.pattern-result{background:#fff;border:1px solid #dbe3ec;border-radius:16px;padding:12px;margin-top:12px}
+.pattern-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.pattern-stat{background:#f8fafc;border-radius:12px;padding:10px;text-align:center}.pattern-stat b{display:block;font-size:19px}.pattern-stat span{font-size:11px;color:#64748b}
+.pattern-board{position:relative;background:#f8fafc;border:3px solid #1e3a5f;overflow:hidden;margin:auto;box-shadow:0 4px 14px #0001}.pattern-board img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:.96}
+.pattern-cut{position:absolute;border:2px dashed #dc2626;display:flex;align-items:center;justify-content:center;text-align:center;color:#991b1b;font-weight:900;background:rgba(255,255,255,.12);text-shadow:0 1px 2px #fff;overflow:hidden}.pattern-cut .cut-label{background:rgba(255,255,255,.84);border-radius:8px;padding:4px 6px;font-size:11px}
+.pattern-remnant{position:absolute;border:2px solid #ef4444;color:#dc2626;background:rgba(239,68,68,.08);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;pointer-events:none}
+.pattern-explain{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.explain-card{border:1px solid #dbe3ec;border-radius:14px;padding:12px;background:#fff}.explain-card h3{margin:0 0 8px;font-size:15px}.explain-list{margin:0;padding-left:20px;font-size:12px;line-height:1.8}
+.pattern-goals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.goal{border-top:3px solid #1e3a5f;padding:9px 5px;text-align:center;font-size:11px}.goal b{display:block;font-size:13px;margin-bottom:3px}
+.island-preview{height:210px;position:relative;background:linear-gradient(#f8fafc,#eef2f7);border-radius:12px;overflow:hidden}.island-top,.island-front,.island-side{position:absolute;border:2px solid #7c2d12;overflow:hidden;background:#f7f2e8}.island-top{width:70%;height:34%;left:12%;top:20%;transform:skewX(-18deg);}.island-front{width:70%;height:32%;left:15%;top:52%;}.island-side{width:17%;height:32%;right:7%;top:35%;transform:skewY(-18deg)}.island-top img,.island-front img,.island-side img{width:100%;height:100%;object-fit:cover}.island-tag{position:absolute;background:#7c2d12;color:#fff;border-radius:99px;padding:3px 8px;font-size:10px;font-weight:900}
+@media(max-width:720px){.pattern-grid,.pattern-explain{grid-template-columns:1fr}.pattern-summary{grid-template-columns:repeat(2,1fr)}.pattern-goals{grid-template-columns:1fr 1fr}.pattern-table{font-size:11px}.pattern-table th,.pattern-table td{padding:6px}}
+
+/* ===== 5.20 App UI：S26 Ultra / Mobile-first ===== */
+:root{
+  --app-navy:#0f2745;--app-blue:#173f68;--app-blue2:#2563eb;
+  --app-red:#dc2626;--app-green:#16a34a;--app-surface:#ffffff;
+}
+body{padding-bottom:0}
+header{background:linear-gradient(135deg,var(--app-navy),var(--app-blue));}
+main{padding-bottom:24px}
+.app-bottom-nav{
+  display:none;
+  position:fixed;left:0;right:0;bottom:0;z-index:50;
+  padding:7px 8px calc(7px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.96);backdrop-filter:blur(16px);
+  border-top:1px solid #dbe3ec;box-shadow:0 -6px 22px #00000012;
+}
+.app-bottom-nav .app-tab{
+  flex:1;border:0;background:transparent;border-radius:12px;
+  min-height:52px;padding:5px 2px;color:#64748b;font-weight:800;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+}
+.app-bottom-nav .app-tab .ico{font-size:20px;line-height:1}
+.app-bottom-nav .app-tab .txt{font-size:10px;line-height:1.1}
+.app-bottom-nav .app-tab.active{color:#173f68;background:#eff6ff}
+.app-top-tools{display:flex;align-items:center;gap:7px;margin-top:9px}
+.app-pill{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;
+  background:#ffffff18;color:#dbeafe;border:1px solid #ffffff22;font-size:10px;font-weight:800
+}
+.pattern-direction-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;
+  background:#fff1f2;color:#b91c1c;font-size:11px;font-weight:900
+}
+.cut-direction-arrow{
+  position:absolute;z-index:5;color:#b91c1c;font-size:12px;font-weight:900;
+  background:#fff8;border-radius:999px;padding:2px 6px;pointer-events:none
+}
+.layout-board .piece{border-color:#173f68;background:#ffffffee}
+.layout-board .piece .piece-meta{font-size:10px;color:#64748b;margin-top:2px}
+.layout-score-card{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px
+}
+.layout-score-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px;text-align:center}
+.layout-score-item b{display:block;font-size:18px;color:#173f68}
+.layout-score-item span{display:block;font-size:10px;color:#64748b;margin-top:2px}
+.optimization-note{
+  display:flex;gap:8px;align-items:flex-start;background:#eff6ff;border:1px solid #bfdbfe;
+  color:#1e3a5f;border-radius:12px;padding:10px;font-size:12px;line-height:1.6;margin-top:10px
+}
+.pattern-board-legend{
+  display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;font-size:10px;color:#475569
+}
+.pattern-board-legend span{padding:4px 7px;border-radius:999px;background:#f8fafc;border:1px solid #e2e8f0}
+.case-sheet-meta{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px
+}
+.case-sheet-meta div{background:#f8fafc;border-radius:10px;padding:8px;text-align:center}
+.case-sheet-meta b{display:block;font-size:14px;color:#173f68}
+.case-sheet-meta span{font-size:10px;color:#64748b}
+@media(max-width:720px){
+  body{padding-bottom:76px}
+  header{position:sticky;top:0}
+  nav{display:none}
+  .app-bottom-nav{display:flex}
+  main{padding:10px 10px 20px}
+  .page-head{border-radius:14px}
+  .card{border-radius:14px;padding:13px}
+  .layout-score-card{grid-template-columns:repeat(2,1fr)}
+  .case-sheet-meta{grid-template-columns:repeat(2,1fr)}
+}
+@media(min-width:721px){
+  .app-bottom-nav{display:none!important}
+}
+
+
+/* 5.21 interactive cutting editor */
+.editor-toolbar{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.editor-btn{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:8px 11px;font-weight:800;color:#173f68}
+.editor-btn.primary{background:#173f68;color:#fff}
+.editor-btn.warn{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.board-editor-wrap{overflow:auto;border:1px solid #dbe3ec;border-radius:14px;background:#eef2f7;padding:10px}
+.board-editor{position:relative;background:#f8fafc;border:2px solid #173f68;touch-action:none}
+.editor-piece{position:absolute;box-sizing:border-box;border:2px solid #173f68;background:#ffffffed;border-radius:5px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:grab;user-select:none;touch-action:none}
+.editor-piece.selected{border:3px solid #dc2626;box-shadow:0 0 0 2px #fecaca}
+.editor-piece.locked{border-style:dashed;cursor:not-allowed}
+.ep-name{font-weight:900;font-size:11px;color:#173f68}.ep-size{font-size:9px;color:#475569}.ep-rotate{font-size:9px;color:#b91c1c}
+.editor-sidepanel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.editor-info,.cad-export-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:9px;font-size:12px}
+.editor-help{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a5f;border-radius:11px;padding:10px;font-size:12px;line-height:1.55;margin-top:10px}
+.editor-warning{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:11px;padding:10px;font-size:12px;line-height:1.55;margin-top:10px}
+@media(max-width:720px){.editor-sidepanel{grid-template-columns:1fr}.editor-toolbar{position:sticky;top:68px;z-index:8;background:#fff;padding:6px;border-radius:10px;box-shadow:0 2px 10px #0001}}
+
+/* ===== 5.21.2 花紋中島：實際原板裁切來源預覽 ===== */
+.pattern-island-card{background:#fff;border:1px solid #dbe3ec;border-radius:16px;padding:14px;margin-top:12px}
+.pattern-island-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pattern-island-head h2{margin:0;color:#0f2745}
+.pattern-island-tools{display:flex;gap:6px;flex-wrap:wrap}
+.pattern-tool-chip{border:1px solid #cbd5e1;background:#f8fafc;color:#173f68;border-radius:999px;padding:7px 10px;font-weight:900;font-size:11px}
+.island-status{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.island-status span{padding:6px 9px;border-radius:999px;background:#f8fafc;border:1px solid #dbe3ec;font-size:10px;font-weight:900}
+.island-status .ok{color:#166534;border-color:#bbf7d0;background:#f0fdf4}.island-status .warn{color:#991b1b;border-color:#fecaca;background:#fef2f2}
+.island-stage{position:relative;background:linear-gradient(180deg,#f8fafc,#edf2f7);border-radius:14px;min-height:370px;overflow:hidden;margin-top:10px;padding:22px}
+.island-model{position:relative;width:min(920px,100%);height:330px;margin:auto}
+.island-panel{position:absolute;overflow:hidden;border:2px solid #173f68;background:#e5e7eb;box-shadow:0 8px 18px #0002}
+.island-panel .crop{position:absolute;inset:0;background-repeat:no-repeat;background-color:#e5e7eb}
+.island-top{left:9%;top:8%;width:68%;height:43%;z-index:3;clip-path:polygon(3% 0,100% 0,96% 100%,0 100%)}
+.island-front{left:9%;top:50%;width:65%;height:38%;z-index:2}
+.island-side{left:74%;top:31%;width:16%;height:57%;z-index:1;clip-path:polygon(15% 0,100% 0,84% 100%,0 100%)}
+.island-overlay{position:absolute;inset:0;z-index:10;pointer-events:none}
+.island-label{position:absolute;background:#fff;border:2px solid #dc2626;color:#0f2745;border-radius:10px;padding:7px 10px;font-weight:900;font-size:12px;box-shadow:0 3px 10px #0002;line-height:1.25}
+.island-label b{color:#b91c1c}
+.island-vein{position:absolute;color:#173f68;font-weight:1000;font-size:12px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;background:#ffffffd9;border-radius:999px;padding:3px 7px}
+.island-seam{position:absolute;border-top:3px solid #dc2626;z-index:12;pointer-events:none;box-shadow:0 0 0 2px #fff8}
+.island-seam.side{border-top:0;border-left:3px solid #dc2626}
+.island-note{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.island-note div{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;text-align:center;font-size:11px}
+.island-note b{display:block;color:#173f68;font-size:14px;margin-bottom:2px}
+.pattern-cut-visual{position:relative;border-radius:14px;background:#f8fafc;border:1px solid #dbe3ec;padding:10px}
+.pattern-cut-visual .cut-board{position:relative;margin:auto;border:3px solid #173f68;background:#eef2f7;overflow:hidden}
+.pattern-cut-visual .cut-source{position:absolute;inset:0;background-repeat:no-repeat;background-size:100% 100%;opacity:.88}
+.pattern-cut-visual .cut-line{position:absolute;border:3px dashed #dc2626;box-sizing:border-box;z-index:3;box-shadow:0 0 0 2px #fff8}
+.pattern-cut-visual .cut-label{position:absolute;z-index:5;background:#0f2745;color:#fff;border-radius:7px;padding:4px 6px;font-size:10px;font-weight:900;white-space:nowrap}
+.pattern-cut-visual .vein-arrow{position:absolute;z-index:6;color:#173f68;font-weight:1000;background:#ffffffd9;border-radius:999px;padding:3px 7px;font-size:10px}
+.pattern-legend-new{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.pattern-legend-new span{padding:6px 9px;border-radius:999px;font-size:10px;font-weight:900;background:#f8fafc;border:1px solid #dbe3ec}
+.pattern-legend-new .red{border-color:#fecaca;color:#b91c1c}.pattern-legend-new .blue{border-color:#bfdbfe;color:#173f68}.pattern-legend-new .gold{border-color:#fde68a;color:#92400e}
+@media(max-width:720px){
+ .island-stage{padding:10px;min-height:330px;overflow:auto}
+ .island-model{min-width:680px;transform:scale(.84);transform-origin:top left;margin-bottom:-45px}
+ .island-note{grid-template-columns:1fr}
+ .pattern-island-head{align-items:flex-start}
+}
+.patternTable input[type='number']::placeholder{color:#9aa3ad;opacity:1}.patternTable input[type='number']{color:#172033}
+/* 5.21.8：花紋版配料輸入尺寸與紋路控制 */
+.pattern-table .pattern-size-input{
+  width:82px;
+  min-width:82px;
+  height:42px;
+  padding:7px 8px;
+  font-size:15px;
+  font-weight:700;
+  box-sizing:border-box;
+}
+.pattern-table .pattern-qty-input{
+  width:52px;
+  min-width:52px;
+  height:42px;
+  padding:7px 6px;
+  font-size:15px;
+  font-weight:700;
+  box-sizing:border-box;
+}
+.pattern-table select[data-k="vein"]{
+  min-width:190px;
+  height:44px;
+  padding:6px 30px 6px 10px;
+  font-size:15px;
+  font-weight:700;
+  border-radius:9px;
+  box-sizing:border-box;
+}
+.pattern-table input[data-k="rotate"]{
+  width:24px;
+  height:24px;
+  transform:scale(1.08);
+  accent-color:#1e3a5f;
+}
+.pattern-table input::placeholder{color:#9aa3ad;opacity:1}
+@media(max-width:600px){
+  .pattern-table .pattern-size-input{width:82px;min-width:82px}
+  .pattern-table .pattern-qty-input{width:52px;min-width:52px}
+  .pattern-table select[data-k="vein"]{min-width:190px;height:46px;font-size:15px}
+}
+
+/* 5.21.8：手機版移除最上方藍色 Header，讓計算內容直接開始 */
+@media(max-width:620px){
+  body > header{
+    display:none !important;
+  }
+  body > nav{
+    top:0 !important;
+  }
+}
+
+/* 5.21.8：網頁版與手機版皆移除最上方藍色 Header，不佔用預覽畫面 */
+header,
+.app-header,
+.top-header,
+.hero-header,
+.header-bar{
+  display:none !important;
+}
+body{
+  padding-top:0 !important;
+}
+</style><style>
+/* Split app navigation */
+.split-app-title{padding:14px 16px;font-size:20px;font-weight:800;background:#0f2745;color:#fff}
+.split-app-sub{padding:0 16px 14px;background:#0f2745;color:#dbe7f5;font-size:13px}
+body{padding-top:0!important}
+@media(max-width:620px){header{display:none!important}}
+</style><body>
+<div id="calcLoading"><div class="loading-box layout-loading-box"><div class="spinner"></div><div id="loadingTitle" class="loading-text">正在計算中…</div><div id="calcProgressBar" class="progress-track"><div id="calcProgressBarInner" class="progress-bar"></div></div><div id="loadingProgress" class="loading-progress">準備開始</div><div id="loadingEta" class="loading-eta">預估剩餘時間：計算中…</div></div></div>
+<header style="display:none!important"></header>
+<nav><button class="active" data-page="remnant">餘料</button><button class="" data-page="loss">應用率</button></nav>
+<div class="app-bottom-nav" id="appBottomNav">
+  <button class="app-tab active" data-page="remnant"><span class="txt">餘料</span></button><button class="app-tab " data-page="loss"><span class="txt">應用率</span></button>
+</div>
+<main>
+<section id="remnant" class="page active">
+<div class="page-head"><h2>🧱 餘料價格計算</h2><p>依大板品牌與規格快速計算餘料價格、面積、才數與原板比例。</p></div>
+<div class="card standard-card"><h2>① 輸入大板資料</h2><div class="formula">長度、深度全部使用「公分 cm」；輸入框已改為範例提示，直接輸入即可。</div>
+<div class="grid">
+<div><label>品牌</label>
+<select id="rBrand" onchange="applyBrandSize()">
+  <option value="">請選擇品牌／規格</option>
+  <option value="vicostone330x165">Vicostone｜330 × 165 cm</option>
+  <option value="vicostone300x140">Vicostone｜300 × 140 cm</option>
+  <option value="LEVEL320x160">LEVEL｜320 × 160 cm</option>
+  <option value="inalco320x160">Inalco MDi｜320 × 160 cm</option>
+</select></div>
+<div><label>大板價格（元）</label><input id="rPrice" type="number" inputmode="decimal" placeholder="0"><div class="input-help-hint">輸入後自動檢查</div></div>
+<div><label>大板長度（cm）</label><input id="rL" type="number" placeholder="0"><div class="input-help-hint">輸入後自動檢查</div></div>
+<div><label>大板深度（cm）</label><input id="rD" type="number" placeholder="0"><div class="input-help-hint">輸入後自動檢查</div></div>
+<div><label>餘料長度（cm）</label><input id="rRL" type="number" placeholder="0"><div class="input-help-hint">輸入後自動檢查</div></div>
+<div><label>餘料深度（cm）</label><input id="rRD" type="number" placeholder="0"><div class="input-help-hint">輸入後自動檢查</div></div>
+</div>
+<div class="formula">長度、深度皆以 cm 輸入；大板價格 ÷ 大板面積 × 餘料面積。才數以 1 才 ≈ 30.3 × 30.3 cm 計算。</div>
+<button class="primary" onclick="if(validateRemnant())runCalc(calcRemnant)">計算並儲存</button><div id="rOut"></div>
+<div class="line-share-wrap"><button type="button" class="line-share-btn" onclick="shareRemnantLine()">💬 一鍵產生 LINE 訊息</button></div></div>
+</section><section id="loss" class="page">
+<div class="card">
+<style>
+.loss-original{margin:0}
+.loss-original h1{font-size:25px;margin:0 0 5px}
+.loss-original .sub{color:#6b7280;font-size:14px;margin-bottom:18px}
+.loss-original label{display:block;font-weight:700;margin:14px 0 6px}
+.loss-original .unit{font-size:13px;font-weight:400;color:#6b7280}
+.loss-original input{width:100%;padding:13px 14px;border:1px solid #d1d5db;border-radius:12px;font-size:20px;outline:none}
+.loss-original input:focus{border-color:#111827}
+.loss-original .loss-btn{width:100%;border:0;border-radius:12px;padding:14px;font-size:18px;font-weight:800;margin-top:18px}
+.loss-original .calc{background:#111827;color:white}
+.loss-original .clear{background:#e5e7eb;color:#111827}
+.loss-original .result{margin-top:20px;border-radius:16px;background:#f9fafb;padding:15px}
+.loss-original .item{display:flex;justify-content:space-between;gap:12px;padding:11px 2px;border-bottom:1px solid #e5e7eb}
+.loss-original .name{color:#4b5563}
+.loss-original .value{font-weight:800;text-align:right}
+.loss-original .final{font-size:24px}
+.loss-original .formula{font-size:12px;color:#6b7280;margin-top:12px;line-height:1.6}
+
+/* 結果區統一排版：所有項目同一字體、同一高度、同一欄位對齊 */
+.result .row,.result .row span,.result .row b{
+  font-size:18px !important;
+  line-height:1.35 !important;
+}
+.result .row b{font-weight:800 !important}
+.loss-results .loss-row,.loss-results .loss-name,.loss-results .loss-row strong,.loss-results .loss-unit{
+  font-size:18px !important;
+  line-height:1.35 !important;
+}
+.loss-results .loss-row-main,.loss-results .loss-row-main .loss-name,.loss-results .loss-row-main strong{
+  min-height:60px !important;
+  font-size:18px !important;
+}
+.loss-results .loss-row strong{font-weight:800 !important}
+.loss-results .loss-unit{white-space:nowrap !important}
+.loss-detail{font-size:13px !important}
+
+/* 5.18 全系統介面統一：以花紋版配料的資訊層級為基準 */
+.page-head{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 4px 14px #0000000d}.page-head h2{margin:0 0 4px;font-size:20px}.page-head p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}.section-label{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;font-weight:900;color:#1e3a5f}.section-label b{background:#1e3a5f;color:#fff;border-radius:99px;padding:3px 7px}.standard-card{border:1px solid #dbe3ec;border-radius:16px;box-shadow:0 3px 12px #00000008}.standard-card h2{color:#173f68}.standard-card .primary{background:#173f68}.standard-card .primary:hover{background:#0f2745}.case-image-card{margin-top:12px;border:1px solid #dbe3ec;border-radius:16px;background:#fff;padding:12px}.case-image-wrap{border:1px solid #cbd5e1;border-radius:12px;overflow:auto;background:#f8fafc}.case-image-wrap img{display:block;width:100%;height:auto}.case-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.case-actions button{min-height:44px}.case-caption{font-size:12px;color:#64748b;line-height:1.6;margin-top:8px}.feature-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.feature-chip{border:1px solid #dbe3ec;background:#f8fafc;border-radius:12px;padding:9px;text-align:center;font-size:11px;color:#334155}.feature-chip b{display:block;font-size:13px;color:#173f68;margin-bottom:3px}@media(max-width:620px){.feature-strip{grid-template-columns:1fr 1fr}.page-head{padding:14px}.page-head h2{font-size:18px}}
+
+/* 5.17 花紋版配料：以紋路連續為核心的專用介面 */
+.pattern-hero{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:18px;margin-bottom:12px}
+.pattern-hero h2{margin:0 0 5px;font-size:20px}.pattern-hero p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}
+.pattern-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:12px}
+.pattern-upload{border:2px dashed #93c5fd;background:#eff6ff;border-radius:14px;padding:14px;text-align:center;cursor:pointer}
+.pattern-upload input{display:none}.upload-btn{display:inline-block;background:#2563eb;color:#fff;border-radius:10px;padding:10px 16px;font-weight:900}
+.pattern-preview{margin-top:10px;border-radius:12px;overflow:hidden;border:1px solid #cbd5e1;background:#f8fafc;min-height:170px;display:flex;align-items:center;justify-content:center}
+.pattern-preview img{display:block;max-width:100%;max-height:300px;object-fit:contain}
+.pattern-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #dbe3ec;border-radius:12px;overflow:hidden;font-size:12px}
+.pattern-table th,.pattern-table td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle}.pattern-table th{background:#f1f5f9;font-weight:900}.pattern-table tr:last-child td{border-bottom:0}
+.pattern-table input{padding:8px;font-size:14px;border-radius:8px}.pattern-table .small-input{width:76px}.pattern-table .name-input{min-width:90px}
+.pattern-result{background:#fff;border:1px solid #dbe3ec;border-radius:16px;padding:12px;margin-top:12px}
+.pattern-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}.pattern-stat{background:#f8fafc;border-radius:12px;padding:10px;text-align:center}.pattern-stat b{display:block;font-size:19px}.pattern-stat span{font-size:11px;color:#64748b}
+.pattern-board{position:relative;background:#f8fafc;border:3px solid #1e3a5f;overflow:hidden;margin:auto;box-shadow:0 4px 14px #0001}.pattern-board img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;opacity:.96}
+.pattern-cut{position:absolute;border:2px dashed #dc2626;display:flex;align-items:center;justify-content:center;text-align:center;color:#991b1b;font-weight:900;background:rgba(255,255,255,.12);text-shadow:0 1px 2px #fff;overflow:hidden}.pattern-cut .cut-label{background:rgba(255,255,255,.84);border-radius:8px;padding:4px 6px;font-size:11px}
+.pattern-remnant{position:absolute;border:2px solid #ef4444;color:#dc2626;background:rgba(239,68,68,.08);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;pointer-events:none}
+.pattern-explain{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.explain-card{border:1px solid #dbe3ec;border-radius:14px;padding:12px;background:#fff}.explain-card h3{margin:0 0 8px;font-size:15px}.explain-list{margin:0;padding-left:20px;font-size:12px;line-height:1.8}
+.pattern-goals{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.goal{border-top:3px solid #1e3a5f;padding:9px 5px;text-align:center;font-size:11px}.goal b{display:block;font-size:13px;margin-bottom:3px}
+.island-preview{height:210px;position:relative;background:linear-gradient(#f8fafc,#eef2f7);border-radius:12px;overflow:hidden}.island-top,.island-front,.island-side{position:absolute;border:2px solid #7c2d12;overflow:hidden;background:#f7f2e8}.island-top{width:70%;height:34%;left:12%;top:20%;transform:skewX(-18deg);}.island-front{width:70%;height:32%;left:15%;top:52%;}.island-side{width:17%;height:32%;right:7%;top:35%;transform:skewY(-18deg)}.island-top img,.island-front img,.island-side img{width:100%;height:100%;object-fit:cover}.island-tag{position:absolute;background:#7c2d12;color:#fff;border-radius:99px;padding:3px 8px;font-size:10px;font-weight:900}
+@media(max-width:720px){.pattern-grid,.pattern-explain{grid-template-columns:1fr}.pattern-summary{grid-template-columns:repeat(2,1fr)}.pattern-goals{grid-template-columns:1fr 1fr}.pattern-table{font-size:11px}.pattern-table th,.pattern-table td{padding:6px}}
+
+/* 5.19 一鍵產生 LINE 訊息 */
+.line-share-wrap{margin-top:14px;padding-top:12px;border-top:1px solid #dbe3ec}.line-share-btn{width:100%;min-height:46px;border:0;border-radius:12px;background:#06c755;color:#fff;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 3px 8px #06c75522}.line-share-btn:active{transform:scale(.99)}
+</style>
+<div class="loss-original">
+<h1>大板價格應用率</h1>
+<div class="sub">依照 ①→②→③→④→⑤ 順序自動計算</div>
+
+<label>材料長度</label><input id="len" type="number" step="any" inputmode="decimal" placeholder="請輸入板材長項"><div class="input-help-hint">輸入後自動檢查</div>
+<label>材料單價 <span class="unit">元</span></label><input id="unit" type="number" step="any" inputmode="decimal" placeholder="請輸入每公分售價"><div class="input-help-hint">輸入後自動檢查</div>
+<label>損耗率</label><input id="lossRate" type="number" step="any" inputmode="decimal" placeholder="20%"><div class="input-help-hint">輸入後自動檢查</div>
+<label>板材售價 <span class="unit">元</span></label><input id="sale" type="number" step="any" inputmode="decimal" placeholder="請輸入大板取得價格"><div class="input-help-hint">輸入後自動檢查</div>
+
+<button class="loss-btn calc" onclick="if(validateSimpleLoss())runCalc(calcLossOriginal)">計算</button>
+<button class="loss-btn clear" onclick="clearLossOriginal()">清除</button>
+
+<div class="loss-results">
+  <div class="loss-row"><span class="loss-name">總長度</span><strong id="r1">—</strong><span class="loss-unit">公分</span></div>
+  <div class="loss-row"><span class="loss-name">每片收益</span><strong id="r2">—</strong><span class="loss-unit">元</span></div>
+  <div class="loss-row"><span class="loss-name">收益損耗</span><strong id="r3">—</strong><span class="loss-unit">元</span></div>
+  <div class="loss-row"><span class="loss-name">板材占比</span><strong id="r4">—</strong><span class="loss-unit">%</span></div>
+  <div class="loss-row loss-row-main"><span class="loss-name">加工實際收益</span><strong id="r5">—</strong><span class="loss-unit">元</span></div>
+  <div class="loss-row"><span class="loss-name">每公分代工費</span><strong id="r6">—</strong><span class="loss-unit">元/cm</span></div>
+  <div class="loss-detail" id="detail"></div>
+</div>
+<div class="line-share-wrap"><button type="button" class="line-share-btn" onclick="shareLossLine()">💬 一鍵產生 LINE 訊息</button></div>
+</div>
+</section>
+</main>
+<script>
+function fmt(value,max=2){
+  if(value===null||value===undefined||Number.isNaN(Number(value))) return '';
+  const num=Number(value);
+  if(Math.abs(num)<1e-12) return '0';
+  return num.toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:max});
+}
+
+const KEY='vicostoneSlabCalcV3';
+let history=JSON.parse(localStorage.getItem(KEY)||'[]');
+const n=id=>parseFloat(document.getElementById(id).value)||0;
+const money=x=>Math.round(x).toLocaleString('zh-TW');
+function save(){localStorage.setItem(KEY,JSON.stringify(history));renderHistory()}
+function addHistory(type,title,data,result){history.unshift({id:Date.now()+Math.random(),time:new Date().toLocaleString('zh-TW'),type,title,data,result});save()}
+
+function nLoss(id){return Number(document.getElementById(id).value)}
+function fmtLoss(x){return x.toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1').replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function calcLossOriginal(){
+  const len=nLoss('len');
+  const unit=nLoss('unit');
+  const rate=nLoss('lossRate');
+  const sale=nLoss('sale');
+
+  if(!len || !unit || !sale || isNaN(rate) || rate<0 || rate>100){
+    return alert('請輸入正確數字，損耗率請輸入 0～100');
+  }
+
+  // 1. 總長度 = 材料長度 × 2
+  const v1=len*2;
+  // 2. 每片收益 = 第1項 × 單價
+  const v2=v1*unit;
+  // 3. 收益損耗 = 第2項 × (1-損耗率)
+  const v3=v2*(1-rate/100);
+  // 4. 板材占比 = 板材售價 ÷ 第3項
+  const v4=v3 ? sale/v3 : 0;
+  // 5. 加工實際收益 = 第3項 − 板材售價
+  const v5=v3-sale;
+  // 6. 每公分代工費 = 收益損耗 ÷ 總長度
+  const v6=v3/v1;
+
+  document.getElementById('r1').textContent=fmt(v1);
+  document.getElementById('r2').textContent=fmt(v2);
+  document.getElementById('r3').textContent=fmt(v3);
+  document.getElementById('r4').textContent=fmt(v4*100);
+  document.getElementById('r5').textContent=fmt(v5);
+  document.getElementById('r6').textContent=fmt(v6);
+
+  document.getElementById('detail').textContent=
+    `① ${fmt(len)} × 2 = ${fmt(v1)}　② ${fmt(v1)} × ${fmt(unit)} = ${fmt(v2)}　③ ${fmt(v2)} × (1-${fmt(rate)}%) = ${fmt(v3)}　④ ${fmt(sale)} ÷ ${fmt(v3)} = ${fmt(v4*100)}%　⑤ ${fmt(v3)} − ${fmt(sale)} = ${fmt(v5)}　⑥ ${fmt(v3)} ÷ ${fmt(v1)} = ${fmt(v6)} 元/cm`;
+
+  addHistory('損耗','',{len,unit,rate,sale},
+    `第3項 $${fmt(v3)}／板材占比 ${fmt(v4*100)}%／加工實際收益 $${fmt(v5)}／代工費 ${fmt(v6)}元/cm`);
+}
+function clearLossOriginal(){
+ ['len','unit','lossRate','sale'].forEach(id=>document.getElementById(id).value='');
+ ['r1','r2','r3','r4','r5'].forEach(id=>document.getElementById(id).textContent='—');
+ document.getElementById('detail').textContent='輸入資料後按「計算」';
+}
+
+function applyBrandSize(){
+ const sizes={
+  vicostone330x165:[330,165],
+  vicostone300x140:[300,140],
+  LEVEL320x160:[320,160],
+  inalco320x160:[320,160]
+ };
+ const v=document.getElementById('rBrand').value;
+ const pair=sizes[v];
+ document.getElementById('rL').value=pair?pair[0]:'';
+ document.getElementById('rD').value=pair?pair[1]:'';
+}
+function calcRemnant(){
+ const price=n('rPrice'),L=n('rL'),D=n('rD'),rl=n('rRL'),rd=n('rRD');
+ if(!price||!L||!D||!rl||!rd)return alert('請輸入大板價格與完整尺寸');
+ const area=L*D/10000, rem=rl*rd/10000, pricePerM2=price/area, val=pricePerM2*rem, cai=rem/(0.303*0.303);
+ document.getElementById('rOut').innerHTML=`<div class="result"><div class="big">$${money(val)}</div><div class="row"><span>大板面積</span><b>${fmt(area)} m²</b></div><div class="row"><span>餘料面積</span><b>${fmt(rem)} m²</b></div><div class="row"><span>餘料才數</span><b>${fmt(cai)} 才</b></div><div class="row"><span>佔原板材比例</span><b>${fmt(rem/area*100)}%</b></div></div>`;
+ const brand=document.getElementById('rBrand').selectedOptions[0]?.text || '';
+ addHistory('餘料',brand,{price,L,D,rl,rd},`${fmt(cai)}才／$${money(val)}`);
+}
+function calcLoss(){
+ const len=n('lLen'),unit=n('lUnit'),rate=n('lRate')/100,board=n('lBoard');
+ const total=len*2, revenue=(len/100)*unit, loss=revenue*rate, ratio=loss?board/loss*100:0, actual=loss-board;
+ document.getElementById('lOut').innerHTML=`<div class="result"><div class="row"><span>① 總長度</span><b>${total.toFixed(2)}</b></div><div class="row"><span>② 每片收益</span><b>$${money(revenue)}</b></div><div class="row"><span>③ 收益損耗</span><b>$${money(loss)}</b></div><div class="row"><span>④ 板材占比</span><b>${ratio.toFixed(2)}%</b></div><div class="row"><span>⑤ 加工實際收益</span><b>$${money(actual)}</b></div></div>`;
+ addHistory('損耗','',{len,unit,rate,board},`加工實際收益 $${money(actual)}`);
+}
+function calcQuote(){
+ const p=n('qPrice'),cost=n('qBoard')+n('qProcess')+n('qShip')+n('qOther'),profit=p-cost,margin=p?profit/p*100:0;
+ document.getElementById('qOut').innerHTML=`<div class="result"><div class="big">$${money(profit)}</div><div class="row"><span>總成本</span><b>$${money(cost)}</b></div><div class="row"><span>毛利率</span><b>${margin.toFixed(2)}%</b></div></div>`;
+ addHistory('報價','報價／毛利',{price:p,board:n('qBoard'),process:n('qProcess'),ship:n('qShip'),other:n('qOther')},`毛利 $${money(profit)}／${margin.toFixed(2)}%`);
+}
+
+let extraPieceCount=0;
+function addPiece(){
+ const container=document.getElementById('piecesContainer');
+ extraPieceCount++;
+ const letter=String.fromCharCode('F'.charCodeAt(0)+extraPieceCount-1);
+ const row=document.createElement('div');
+ row.className='piece-row'; row.dataset.piece=letter;
+ row.innerHTML=`<div class="piece-title">配料 ${letter}</div>
+ <div><label>長（cm）</label><input id="${letter.toLowerCase()}L" type="number" placeholder="0"></div>
+ <div><label>深（cm）</label><input id="${letter.toLowerCase()}D" type="number" placeholder="0"></div>
+`;
+ container.appendChild(row);
+ // Keep the add button at the end of the list.
+ container.appendChild(document.getElementById('addPieceBtn'));
+}
+function setCalcProgress(done,total,startTime){
+ const bar=document.getElementById('calcProgressBar');
+ const progress=document.getElementById('loadingProgress');
+ const eta=document.getElementById('loadingEta');
+ const pct=total?Math.min(100,done/total*100):0;
+ bar.style.width=pct.toFixed(1)+'%';
+ progress.textContent=`排版計算 ${done} / ${total}（${Math.round(pct)}%）`;
+ if(done<=0){
+   eta.textContent='預估剩餘時間：計算中…';
+   return;
+ }
+ const elapsed=(performance.now()-startTime)/1000;
+ const remain=Math.max(0,elapsed/done*(total-done));
+ if(remain<0.8) eta.textContent='預估剩餘時間：即將完成';
+ else eta.textContent=`預估剩餘時間：約 ${remain<10?remain.toFixed(1):Math.ceil(remain)} 秒`;
+}
+function resetCalcProgress(){
+ const bar=document.getElementById('calcProgressBar');
+ const progress=document.getElementById('loadingProgress');
+ const eta=document.getElementById('loadingEta');
+ if(bar) bar.style.width='0%';
+ if(progress) progress.textContent='準備開始';
+ if(eta) eta.textContent='預估剩餘時間：計算中…';
+}
+function runCalc(fn){
+ const overlay=document.getElementById('calcLoading');
+ resetCalcProgress();
+ overlay.classList.add('show');
+ setTimeout(()=>{
+   Promise.resolve().then(()=>fn()).finally(()=>{
+     setTimeout(()=>overlay.classList.remove('show'),220);
+   });
+ },80);
+}
+function pieces(){
+ const rows=[...document.querySelectorAll('#piecesContainer .piece-row')];
+ return rows.map(row=>{
+   const name=row.dataset.piece;
+   const L=document.getElementById(name.toLowerCase()+'L');
+   const D=document.getElementById(name.toLowerCase()+'D');
+   return {name,w:parseFloat(L?.value)||0,h:parseFloat(D?.value)||0};
+ }).filter(x=>x.w>0&&x.h>0);
+}
+
+/* 依輸入順序排版：
+   每片板材一開始只有一個完整可用矩形。
+   每放一件配料，就把被占用的矩形切成右側/下側剩餘空間，
+   並在每次放置時比較原方向與旋轉方向，選擇較合適的方向。
+   若目前所有剩餘矩形都放不下，就開下一片完整大板。 */
+function packSequential(W,H,items){
+ let sheets=[];
+ function newSheet(){ return {free:[{x:0,y:0,w:W,h:H}],parts:[]}; }
+ function placeOnSheet(sheet,item){
+   let candidates=[];
+   sheet.free.forEach((r,ri)=>{
+     for(const rot of [false,true]){
+       const w=rot?item.h:item.w, h=rot?item.w:item.h;
+       if(w<=r.w && h<=r.h){
+         const waste=r.w*r.h-w*h;
+         candidates.push({ri,rot,w,h,x:r.x,y:r.y,waste,short:Math.min(r.w-w,r.h-h)});
+       }
+     }
+   });
+   if(!candidates.length) return false;
+   candidates.sort((a,b)=>a.waste-b.waste || a.short-b.short);
+   const c=candidates[0], r=sheet.free[c.ri];
+   sheet.parts.push({item,rot:c.rot,x:c.x,y:c.y,w:c.w,h:c.h});
+   sheet.free.splice(c.ri,1);
+
+   // Guillotine split: right side + bottom side.
+   if(r.w-c.w>0) sheet.free.push({x:r.x+c.w,y:r.y,w:r.w-c.w,h:c.h});
+   if(r.h-c.h>0) sheet.free.push({x:r.x,y:r.y+c.h,w:r.w,h:r.h-c.h});
+   // Remove contained/zero free rectangles and merge simple adjacent rectangles.
+   sheet.free=sheet.free.filter(a=>a.w>0&&a.h>0);
+   let changed=true;
+   while(changed){
+     changed=false;
+     outer: for(let i=0;i<sheet.free.length;i++){
+       for(let j=i+1;j<sheet.free.length;j++){
+         const a=sheet.free[i],b=sheet.free[j];
+         if(a.y===b.y&&a.h===b.h&&(a.x+a.w===b.x||b.x+b.w===a.x)){
+           sheet.free.splice(j,1); sheet.free[i]={x:Math.min(a.x,b.x),y:a.y,w:a.w+b.w,h:a.h}; changed=true; break outer;
+         }
+         if(a.x===b.x&&a.w===b.w&&(a.y+a.h===b.y||b.y+b.h===a.y)){
+           sheet.free.splice(j,1); sheet.free[i]={x:a.x,y:Math.min(a.y,b.y),w:a.w,h:a.h+b.h}; changed=true; break outer;
+         }
+       }
+     }
+   }
+   return true;
+ }
+ for(const item of items){
+   let placed=false;
+   for(const sheet of sheets){
+     if(placeOnSheet(sheet,item)){placed=true;break;}
+   }
+   if(!placed){
+     const sheet=newSheet();
+     if(!placeOnSheet(sheet,item)) return null;
+     sheets.push(sheet);
+   }
+ }
+ return sheets;
+}
+function drawSheet(sheet,W,H,index){
+ const max=350, scale=Math.min(max/W,max/H), sw=W*scale, sh=H*scale;
+ let s=`<div style="margin-top:16px"><b>第 ${index+1} 片大板｜${W} × ${H} cm</b>`;
+ s+=`<div class="sheet" style="width:${sw}px;height:${sh}px">`;
+ for(const p of sheet.parts){
+   s+=`<div class="piece" style="left:${p.x*scale}px;top:${p.y*scale}px;width:${p.w*scale}px;height:${p.h*scale}px">${p.item.name}<br>${p.w} × ${p.h} cm</div>`;
+ }
+ s+='</div>';
+ const remain=sheet.free.reduce((sum,r)=>sum+r.w*r.h,0);
+ s+=`<div class="formula">本片已用：${sheet.parts.reduce((sum,p)=>sum+p.w*p.h,0).toFixed(0)} cm²　剩餘可用：${remain.toFixed(0)} cm²</div></div>`;
+ return s;
+}
+async function calcLayout(){
+  const W=n('pL'), H=n('pD');
+  const kerf=Math.max(0,n('pKerf'));
+  const trim=Math.max(0,n('pTrim'));
+  const allowRotate=document.getElementById('pRotate').checked;
+  const ps=pieces();
+
+  if(!W||!H||!ps.length){
+    return alert('請輸入大板長、深，以及至少一個配料尺寸');
+  }
+
+  const usableW=W-trim*2;
+  const usableH=H-trim*2;
+  if(usableW<=0 || usableH<=0){
+    return alert('修邊後的大板可用尺寸不足，請檢查大板尺寸與修邊。');
+  }
+
+  const boardArea=usableW*usableH;
+  const items=ps.map((p,i)=>({...p,idx:i,area:p.w*p.h}))
+                 .sort((a,b)=>b.area-a.area);
+
+  function orientations(item){
+    const list=[{w:item.w,h:item.h,rot:false}];
+    if(allowRotate && Math.abs(item.w-item.h)>1e-9){
+      list.push({w:item.h,h:item.w,rot:true});
+    }
+    return list;
+  }
+
+  function placeOne(board,item){
+    let best=null;
+    for(let fi=0;fi<board.free.length;fi++){
+      const r=board.free[fi];
+      for(const o of orientations(item)){
+        // 預留右側／下側鋸縫空間，避免相鄰配料沒有裁切間隙。
+        const needW=o.w+kerf;
+        const needH=o.h+kerf;
+        if(needW>r.w+1e-9 || needH>r.h+1e-9) continue;
+        const dw=r.w-needW, dh=r.h-needH;
+        const score=[Math.min(dw,dh),Math.max(dw,dh),r.w*r.h-o.w*o.h];
+        if(!best ||
+          score[0]<best.score[0] ||
+          (score[0]===best.score[0]&&score[1]<best.score[1]) ||
+          (score[0]===best.score[0]&&score[1]===best.score[1]&&score[2]<best.score[2])){
+          best={fi,x:r.x,y:r.y,w:o.w,h:o.h,rot:o.rot,needW,needH,score};
+        }
+      }
+    }
+    return best;
+  }
+
+  function split(board,c){
+    const used={x:c.x,y:c.y,w:c.needW,h:c.needH};
+    const out=[];
+    for(const r of board.free){
+      const hit=!(used.x>=r.x+r.w-1e-9 ||
+                  used.x+used.w<=r.x+1e-9 ||
+                  used.y>=r.y+r.h-1e-9 ||
+                  used.y+used.h<=r.y+1e-9);
+      if(!hit){out.push({...r});continue;}
+
+      if(used.x>r.x+1e-9) out.push({x:r.x,y:r.y,w:used.x-r.x,h:r.h});
+      if(used.x+used.w<r.x+r.w-1e-9) out.push({x:used.x+used.w,y:r.y,w:r.x+r.w-(used.x+used.w),h:r.h});
+      if(used.y>r.y+1e-9) out.push({x:r.x,y:r.y,w:r.w,h:used.y-r.y});
+      if(used.y+used.h<r.y+r.h-1e-9) out.push({x:r.x,y:used.y+used.h,w:r.w,h:r.y+r.h-(used.y+used.h)});
+    }
+
+    const clean=[];
+    for(let i=0;i<out.length;i++){
+      const a=out[i];
+      if(a.w<=0.0001||a.h<=0.0001) continue;
+      let inside=false;
+      for(let j=0;j<out.length;j++){
+        if(i===j) continue;
+        const b=out[j];
+        if(b.x<=a.x+1e-7&&b.y<=a.y+1e-7&&
+           b.x+b.w>=a.x+a.w-1e-7&&b.y+b.h>=a.y+a.h-1e-7){
+          inside=true;break;
+        }
+      }
+      if(!inside) clean.push(a);
+    }
+    return clean;
+  }
+
+  function addItem(board,item,c){
+    return {
+      free:split(board,c),
+      placed:board.placed.concat([{
+        name:item.name,w:c.w,h:c.h,x:c.x,y:c.y,rot:c.rot,idx:item.idx
+      }])
+    };
+  }
+
+  // 不依照使用者輸入順序排版：先建立多種「自動排序」方案，
+  // 每一種方案都允許建立無限片數的大板，目標是把所有輸入配料全部放進去。
+  // 評估優先順序：1. 所有配料都成功放入 2. 使用大板片數較少 3. 利用率較高。
+  const orders=[
+    items.slice().sort((a,b)=>b.area-a.area),
+    items.slice().sort((a,b)=>Math.max(b.w,b.h)-Math.max(a.w,a.h)),
+    items.slice().sort((a,b)=>Math.min(b.w,b.h)-Math.min(a.w,a.h)),
+    items.slice().sort((a,b)=>(b.w+b.h)-(a.w+a.h)),
+    items.slice().sort((a,b)=>Math.abs((b.w/b.h)-(a.w/a.h))),
+    items.slice().sort((a,b)=>b.w-a.w),
+    items.slice().sort((a,b)=>b.h-a.h),
+    items.slice().sort((a,b)=>{
+      const da=Math.max(a.w,a.h)-Math.min(a.w,a.h);
+      const db=Math.max(b.w,b.h)-Math.min(b.w,b.h);
+      return db-da;
+    }),
+    items.slice().sort((a,b)=>(b.area/a.w)-(a.area/a.w))
+  ];
+
+  const seen=new Set(), unique=[];
+  for(const o of orders){
+    const k=o.map(x=>x.idx).join(',');
+    if(!seen.has(k)){seen.add(k);unique.push(o);}
+  }
+
+  const progressTotal=Math.max(1,unique.length*items.length);
+  const progressStart=performance.now();
+  let progressDone=0;
+  setCalcProgress(0,progressTotal,progressStart);
+
+  async function runOrder(order, orderIndex){
+    const boards=[];
+    for(const item of order){
+      let bestBoard=-1,bestC=null,bestScore=null;
+
+      // 不受輸入順序限制：目前已有的每一片大板都會嘗試，
+      // 找最適合放入的位置；放不下才自動新增下一片大板。
+      for(let bi=0;bi<boards.length;bi++){
+        const c=placeOne(boards[bi],item);
+        if(!c) continue;
+        const remaining=boards[bi].free.reduce((a,r)=>a+r.w*r.h,0)-item.area;
+        // 優先塞進最適合的現有板材，降低碎料；不因輸入順序而固定使用第一片。
+        const score=[c.score[0],c.score[1],Math.max(0,remaining),bi];
+        if(!bestScore ||
+          score[0]<bestScore[0] ||
+          (score[0]===bestScore[0]&&score[1]<bestScore[1]) ||
+          (score[0]===bestScore[0]&&score[1]===bestScore[1]&&score[2]<bestScore[2]) ||
+          (score[0]===bestScore[0]&&score[1]===bestScore[1]&&score[2]===bestScore[2]&&score[3]<bestScore[3])){
+          bestBoard=bi;bestC=c;bestScore=score;
+        }
+      }
+
+      if(bestBoard>=0){
+        boards[bestBoard]=addItem(boards[bestBoard],item,bestC);
+      }else{
+        // 沒有任何既有大板放得下，就直接新增一片；不限制大板數量。
+        const nb={free:[{x:0,y:0,w:usableW,h:usableH}],placed:[]};
+        const c=placeOne(nb,item);
+        if(!c) return null;
+        boards.push(addItem(nb,item,c));
+      }
+
+      progressDone++;
+      setCalcProgress(progressDone,progressTotal,progressStart);
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    return boards;
+  }
+
+  let best=null;
+  const totalArea=items.reduce((a,x)=>a+x.area,0);
+
+  // 比較多種自動排序，但絕不以原始輸入順序作為唯一排版依據。
+  for(let oi=0;oi<unique.length;oi++){
+    const boards=await runOrder(unique[oi],oi);
+    if(!boards) continue;
+    const count=boards.length;
+    const util=totalArea/(count*boardArea);
+    const usefulRemnants=boards.reduce((sum,b)=>sum+b.free.filter(r=>r.w>=20&&r.h>=20).length,0);
+    const fragmentPenalty=boards.reduce((sum,b)=>sum+b.free.filter(r=>r.w<20||r.h<20).reduce((s,r)=>s+r.w*r.h,0),0);
+    const score={count,util,usefulRemnants,fragmentPenalty};
+    if(!best ||
+      count<best.count ||
+      (count===best.count && util>best.util) ||
+      (count===best.count && Math.abs(util-best.util)<1e-12 && usefulRemnants>best.usefulRemnants) ||
+      (count===best.count && Math.abs(util-best.util)<1e-12 && usefulRemnants===best.usefulRemnants && fragmentPenalty<best.fragmentPenalty)){
+      best={boards,count,util,usefulRemnants,fragmentPenalty};
+    }
+  }
+
+  if(!best){
+    return alert('無法排入：至少有一個配料尺寸超過修邊後大板可用範圍。');
+  }
+  window.layoutBest=best;
+
+  let out=`<div class="result">
+    <div class="big">需要 ${best.count} 片大板</div>
+    <div class="row"><span>原始大板尺寸</span><b>${fmt(W)} × ${fmt(H)} cm</b></div>
+    <div class="row"><span>修邊後可用尺寸</span><b>${fmt(usableW)} × ${fmt(usableH)} cm</b></div>
+    <div class="row"><span>鋸縫</span><b>${fmt(kerf)} cm</b></div>
+    <div class="row"><span>配料數量</span><b>${ps.length} 件</b></div>
+    <div class="row"><span>配料總面積</span><b>${fmt(totalArea/10000)} m²</b></div>
+    <div class="row"><span>總利用率</span><b>${fmt(best.util*100)}%</b></div>
+  </div>
+  <div class="layout-score-card">
+    <div class="layout-score-item"><b>${best.count}</b><span>使用大板</span></div>
+    <div class="layout-score-item"><b>${fmt(best.util*100)}%</b><span>總利用率</span></div>
+    <div class="layout-score-item"><b>${best.usefulRemnants}</b><span>可用餘料區</span></div>
+    <div class="layout-score-item"><b>${fmt(best.fragmentPenalty/10000)} m²</b><span>碎料區</span></div>
+  </div>
+  <div class="optimization-note"><b>⚙️</b><span>5.20 排版會自動比較多組配料順序，再以「大板片數 → 利用率 → 可用餘料 → 碎料」依序挑選結果；不依照你輸入的 A、B、C 順序硬排。</span></div>`;
+
+  best.boards.forEach((b,bi)=>{
+    const used=b.placed.reduce((a,p)=>a+p.w*p.h,0);
+    const util=used/boardArea;
+    const boardPxW=Math.max(280,Math.min(760,W*2));
+    const boardPxH=Math.max(180,Math.min(430,H*2));
+
+    out+=`<div class="card" style="margin-top:14px">
+      <h3>第 ${bi+1} 片大板　利用率 ${fmt(util*100)}%</h3>
+      <div style="overflow:auto">
+        <div class="layout-board" style="position:relative;width:${boardPxW}px;height:${boardPxH}px;border:3px solid #111827;background:#f8fafc;margin:auto">
+          <div style="position:absolute;left:${trim/W*100}%;top:${trim/H*100}%;width:${usableW/W*100}%;height:${usableH/H*100}%;border:1px dashed #94a3b8;pointer-events:none"></div>
+          ${b.placed.map(p=>{
+            const left=(trim+p.x)/W*boardPxW;
+            const top=(trim+p.y)/H*boardPxH;
+            const ww=p.w/W*boardPxW;
+            const hh=p.h/H*boardPxH;
+            return `<div class="piece" style="left:${left}px;top:${top}px;width:${Math.max(2,ww)}px;height:${Math.max(2,hh)}px">
+              <div>${p.name}</div><div class="piece-meta">${fmt(p.w)}×${fmt(p.h)} cm</div>${p.rot?'<div style="font-size:10px;color:#b91c1c">↻ 90°</div>':'<div style="font-size:10px;color:#64748b">原方向</div>'}
+            </div>`;
+          }).join('')}
+          ${b.free.filter(r=>r.w>=20&&r.h>=20).map(r=>{
+            const left=(trim+r.x)/W*boardPxW;
+            const top=(trim+r.y)/H*boardPxH;
+            const ww=r.w/W*boardPxW;
+            const hh=r.h/H*boardPxH;
+            const label=`${fmt(r.w)} × ${fmt(r.h)} cm`;
+            return `<div class="remnant-overlay" style="left:${left}px;top:${top}px;width:${Math.max(4,ww)}px;height:${Math.max(4,hh)}px"><span>${label}</span></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="formula">已使用：${fmt(used/10000)} m²　｜　可用區剩餘：${fmt((boardArea-used)/10000)} m²</div>
+    </div>`;
+  });
+
+  // 自動整理每片大板的可用殘料矩形；過小區塊不列入，避免把鋸縫碎料誤當可用餘料。
+  let remnantCount=0;
+  out+=`<div class="card" style="margin-top:14px">
+    <h3>♻️ 自動產生可用餘料</h3>
+    <div class="formula">已扣除四周修邊與鋸縫；僅列出至少 20 × 20 cm 的矩形區域。</div>`;
+
+  best.boards.forEach((b,bi)=>{
+    const useful=b.free
+      .filter(r=>r.w>=20&&r.h>=20)
+      .sort((a,b)=>b.w*b.h-a.w*a.h);
+
+    if(!useful.length) return;
+
+    useful.forEach(r=>{
+      remnantCount++;
+      const cai=r.w*r.h/(30.3*30.3);
+      out+=`<div class="remnant-item">
+        <div>
+          <b>第 ${bi+1} 片大板</b>　${fmt(r.w)} × ${fmt(r.h)} cm
+          <span class="remnant-cai">約 ${fmt(cai)} 才</span>
+        </div>
+        <span></span>
+      </div>`;
+    });
+  });
+
+  if(!remnantCount){
+    out+=`<div class="empty">沒有符合 20 × 20 cm 的可用矩形餘料。</div>`;
+  }else{
+    out+=`<div class="formula" style="margin-top:8px">共找到 ${remnantCount} 塊可用矩形餘料。</div>`;
+  }
+  out+=`</div>`;
+
+  out+=`<div class="notice">排版已納入：四周修邊、配料 90° 旋轉、鋸縫預留，以及多種有限排列順序比較。天然石材紋路、缺陷、實際下刀路徑與特殊異形加工仍需現場確認。</div>`;
+
+  document.getElementById('pOut').innerHTML=out;
+  try{setTimeout(()=>loadEditor('layout',window.layoutBest?.boards),30)}catch(e){}
+  addHistory('排版','大板排版',{
+    boardL:W,boardD:H,kerf,trim,
+    pieces:ps.map(p=>({name:p.name,L:p.w,D:p.h}))
+  },`${best.count}片／利用率${fmt(best.util*100)}%／可用餘料${remnantCount}塊`);
+}
+
+
+
+function openLineMessage(message){
+  const text=String(message||'').trim();
+  if(!text)return alert('目前沒有可產生的 LINE 訊息。請先完成計算或選擇紀錄。');
+  const url='https://line.me/R/msg/text/?'+encodeURIComponent(text);
+  window.open(url,'_blank','noopener');
+}
+function shareRemnantLine(){
+  const brand=document.getElementById('rBrand')?.selectedOptions[0]?.text||'未指定品牌';
+  const price=n('rPrice'),L=n('rL'),D=n('rD'),rl=n('rRL'),rd=n('rRD');
+  if(!price||!L||!D||!rl||!rd)return alert('請先完成餘料價格計算。');
+  const area=L*D/10000,rem=rl*rd/10000,val=price/area*rem,cai=rem/(.303*.303);
+  openLineMessage(`【餘料價格計算】\n品牌：${brand}\n大板：${fmt(L)} × ${fmt(D)} cm\n餘料：${fmt(rl)} × ${fmt(rd)} cm\n餘料面積：${fmt(rem)} m²\n餘料才數：約 ${fmt(cai)} 才\n餘料價格：$${money(val)}\n原板比例：${fmt(rem/area*100)}%`);
+}
+function shareLayoutLine(){
+  const W=n('pL'),H=n('pD');
+  const text=(document.getElementById('pOut')?.innerText||'').trim();
+  if(!W||!H||!text||text.includes('請輸入'))return alert('請先完成大板配料計算。');
+  const compact=text.replace(/\n{3,}/g,'\n').slice(0,3500);
+  openLineMessage(`【大板配料計算】\n大板尺寸：${fmt(W)} × ${fmt(H)} cm\n\n${compact}`);
+}
+function sharePatternLine(){
+  const W=n('vL'),H=n('vD');
+  const out=(document.getElementById('patternOut')?.innerText||'').trim();
+  if(!W||!H||!out||out.includes('請輸入'))return alert('請先完成花紋版配料計算。');
+  const rows=getPatternRows();
+  const pieceText=rows.map((p,i)=>`${i+1}. ${p.name} ${fmt(p.w)} × ${fmt(p.h)} cm × ${p.qtyIndex||1}`).join('\n');
+  const compact=out.replace(/\n{3,}/g,'\n').slice(0,3200);
+  openLineMessage(`【花紋版配料】\n大板尺寸：${fmt(W)} × ${fmt(H)} cm\n固定紋路方向：${document.getElementById('vFixedVein').checked?'是':'否'}\n紋路接續優先：${document.getElementById('vContinuity').checked?'是':'否'}\n\n配料：\n${pieceText}\n\n計算結果：\n${compact}`);
+}
+function shareLossLine(){
+  const len=nLoss('len'),unit=nLoss('unit'),rate=nLoss('lossRate'),sale=nLoss('sale');
+  const vals=['r1','r2','r3','r4','r5','r6'].map(id=>document.getElementById(id)?.textContent||'—');
+  if(!len||!unit||!sale||!document.getElementById('r1')?.textContent||document.getElementById('r1').textContent==='—')return alert('請先完成大板價格應用率計算。');
+  openLineMessage(`【大板價格應用率】\n材料長度：${fmt(len)} cm\n材料單價：${fmt(unit)} 元/cm\n損耗率：${fmt(rate)}%\n板材售價：${fmt(sale)} 元\n\n總長度：${vals[0]} 公分\n每片收益：${vals[1]} 元\n收益損耗：${vals[2]} 元\n板材占比：${vals[3]} %\n加工實際收益：${vals[4]} 元\n每公分代工費：${vals[5]} 元/cm`);
+}
+function shareHistoryLine(){
+  const t=document.getElementById('hType')?.value||'';
+  const name={餘料:'餘料價格計算',排版:'大板配料計算',花紋版:'花紋版配料',損耗:'大板價格應用率'}[t];
+  if(!t||!name)return alert('請先選擇要查詢的紀錄類型。');
+  const q=(document.getElementById('hSearch')?.value||'').toLowerCase();
+  const arr=history.filter(x=>x.type===t&&JSON.stringify(x).toLowerCase().includes(q));
+  if(!arr.length)return alert('目前沒有可分享的紀錄。');
+  const lines=arr.slice(0,20).map((x,i)=>`${i+1}. ${x.time}\n${x.title||name}\n${x.result}`).join('\n\n');
+  openLineMessage(`【${name}｜紀錄查詢】\n共 ${arr.length} 筆${q?`｜搜尋：${q}`:''}\n\n${lines}`);
+}
+
+function renderHistory(){
+  const el=document.getElementById('historyList');
+  const q=(document.getElementById('hSearch')?.value||'').toLowerCase();
+  const t=document.getElementById('hType')?.value||'';
+  if(!t){el.innerHTML='<div class="empty">請先選擇要查詢的紀錄類型</div>';return}
+  const arr=history.filter(x=>x.type===t && JSON.stringify(x).toLowerCase().includes(q));
+  if(!arr.length){el.innerHTML='<div class="empty">目前沒有符合的「'+({餘料:'餘料價格計算',排版:'大板配料計算',花紋版:'花紋版配料',損耗:'大板價格應用率'}[t]||t)+'」紀錄</div>';return}
+  const typeName={餘料:'餘料價格計算',排版:'大板配料計算',花紋版:'花紋版配料',損耗:'大板價格應用率'}[t]||t;
+  el.innerHTML='<div class="formula" style="margin-bottom:8px">目前查詢：'+typeName+'（共 '+arr.length+' 筆）</div>'+arr.map(x=>`<div class="history-item"><span class="badge">${typeName}</span> <small>${x.time}</small><br><b>${x.title}</b><br>${x.result}<div class="actions">${['餘料','損耗'].includes(x.type)?`<button class="secondary" onclick="reuse('${x.id}')">再次計算</button>`:''}<button class="secondary danger" onclick="delHistory('${x.id}')">刪除</button></div></div>`).join('');
+}
+function delHistory(id){history=history.filter(x=>String(x.id)!==String(id));save()}
+function clearHistory(){if(confirm('確定清除全部歷史紀錄？')){history=[];save()}}
+function reuse(id){
+ const x=history.find(y=>String(y.id)===String(id));if(!x)return;
+ if(x.type==='餘料'){go('remnant');const d=x.data;['rPrice','rL','rD','rRL','rRD'].forEach((id,i)=>document.getElementById(id).value=[d.price,d.L,d.D,d.rl,d.rd][i])}
+ if(x.type==='損耗'){go('loss');const d=x.data;['len','unit','lossRate','sale'].forEach((id,i)=>document.getElementById(id).value=[d.len,d.unit,(d.rate??0),d.sale][i])}
+
+}
+function go(id){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('nav button,.app-bottom-nav .app-tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll(`nav button[data-page="${id}"],.app-bottom-nav .app-tab[data-page="${id}"]`).forEach(x=>x.classList.add('active'));
+  scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('nav button,.app-bottom-nav .app-tab').forEach(b=>b.onclick=()=>go(b.dataset.page));
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('loss').classList.contains('active'))calcLossOriginal()});
+
+/* ===== 5.17 花紋版配料 ===== */
+let patternImageData='';
+let patternRowCount=0;
+document.getElementById('patternImageInput')?.addEventListener('change',function(e){
+ const file=e.target.files?.[0]; if(!file)return;
+ const reader=new FileReader();
+ reader.onload=()=>{
+   patternImageData=reader.result;
+   document.getElementById('patternImagePreview').innerHTML=`<img src="${patternImageData}" alt="大板花紋預覽">`;
+ };
+ reader.readAsDataURL(file);
+});
+function addPatternRow(data={}){
+ patternRowCount++;
+ const n=patternRowCount;
+ const tr=document.createElement('tr');
+ tr.dataset.n=n;
+ tr.innerHTML=`<td><b style="color:#b91c1c">${n}</b></td>
+ <td><input class="pattern-num pattern-size-input" data-k="w" type="number" inputmode="numeric" placeholder="0"></td>
+ <td><input class="pattern-num pattern-size-input" data-k="h" type="number" inputmode="numeric" placeholder="0"></td>
+ <td><input class="pattern-num pattern-qty-input" data-k="qty" type="number" min="1" inputmode="numeric" placeholder="0"></td>
+ <td style="text-align:center"><input data-k="rotate" type="checkbox" ${data.rotate!==false?'checked':''}></td>
+ <td><select data-k="vein"><option value="parallel">紋路需接續（長邊平行）</option><option value="free">可依位置調整</option></select></td>
+ <td><input class="name-input" data-k="name" placeholder="例如：桌面、前立面（可不填）" value="${data.name||''}"></td>`;
+ tr.querySelector('[data-k="vein"]').value=data.vein||'parallel';
+ document.getElementById('patternRows').appendChild(tr);
+}
+function getPatternRows(){
+ const rows=[...document.querySelectorAll('#patternRows tr')];
+ const out=[];
+ rows.forEach((tr,idx)=>{
+   const get=k=>tr.querySelector(`[data-k="${k}"]`);
+   const w=parseFloat(get('w')?.value)||0,h=parseFloat(get('h')?.value)||0,qty=Math.max(1,parseInt(get('qty')?.value)||1);
+   if(w>0&&h>0) for(let q=1;q<=qty;q++) out.push({name:get('name')?.value?.trim()||`配料${idx+1}`,w,h,allowRotate:!!get('rotate')?.checked,vein:get('vein')?.value||'parallel',sourceRow:idx+1,qtyIndex:q});
+ });
+ return out;
+}
+function patternOrientations(item,fixedVein){
+ const arr=[{w:item.w,h:item.h,rot:false}];
+ if(!fixedVein && item.allowRotate && Math.abs(item.w-item.h)>1e-9) arr.push({w:item.h,h:item.w,rot:true});
+ return arr;
+}
+function patternPlace(board,item,kerf,fixedVein){
+ let best=null;
+ for(let fi=0;fi<board.free.length;fi++){
+  const r=board.free[fi];
+  for(const o of patternOrientations(item,fixedVein)){
+   const needW=o.w+kerf,needH=o.h+kerf;
+   if(needW>r.w+1e-9||needH>r.h+1e-9)continue;
+   const dw=r.w-needW,dh=r.h-needH;
+   // 以「更容易形成連續大面」為主，並兼顧碎料。
+   const score=[Math.min(dw,dh),Math.max(dw,dh),r.w*r.h-o.w*o.h];
+   if(!best||score[0]<best.score[0]||(score[0]===best.score[0]&&score[1]<best.score[1])||(score[0]===best.score[0]&&score[1]===best.score[1]&&score[2]<best.score[2])) best={fi,x:r.x,y:r.y,w:o.w,h:o.h,rot:o.rot,needW,needH,score};
+  }
+ }
+ return best;
+}
+function patternSplit(board,c){
+ const used={x:c.x,y:c.y,w:c.needW,h:c.needH};const out=[];
+ for(const r of board.free){
+  const hit=!(used.x>=r.x+r.w-1e-9||used.x+used.w<=r.x+1e-9||used.y>=r.y+r.h-1e-9||used.y+used.h<=r.y+1e-9);
+  if(!hit){out.push({...r});continue;}
+  if(used.x>r.x+1e-9)out.push({x:r.x,y:r.y,w:used.x-r.x,h:r.h});
+  if(used.x+used.w<r.x+r.w-1e-9)out.push({x:used.x+used.w,y:r.y,w:r.x+r.w-(used.x+used.w),h:r.h});
+  if(used.y>r.y+1e-9)out.push({x:r.x,y:r.y,w:r.w,h:used.y-r.y});
+  if(used.y+used.h<r.y+r.h-1e-9)out.push({x:r.x,y:used.y+used.h,w:r.w,h:r.y+r.h-(used.y+used.h)});
+ }
+ const clean=[];
+ for(let i=0;i<out.length;i++){const a=out[i];if(a.w<.01||a.h<.01)continue;let inside=false;for(let j=0;j<out.length;j++){if(i===j)continue;const b=out[j];if(b.x<=a.x+1e-7&&b.y<=a.y+1e-7&&b.x+b.w>=a.x+a.w-1e-7&&b.y+b.h>=a.y+a.h-1e-7){inside=true;break}}if(!inside)clean.push(a)}
+ return clean;
+}
+function patternAdd(board,item,c){return {free:patternSplit(board,c),parts:board.parts.concat([{...item,x:c.x,y:c.y,w:c.w,h:c.h,rot:c.rot}])};}
+function patternScore(boards,totalArea,boardArea,continuity){
+ const count=boards.length,util=totalArea/(count*boardArea);
+ // 連續性優先：同板相鄰的長邊件越多越好，並鼓勵大型件形成連續帶。
+ let adj=0,islandJoin=0;
+ const touch=(a,c)=>{
+   const touchX=Math.abs((a.x+a.w)-c.x)<.001||Math.abs((c.x+c.w)-a.x)<.001;
+   const overlapY=Math.min(a.y+a.h,c.y+c.h)-Math.max(a.y,c.y);
+   const touchY=Math.abs((a.y+a.h)-c.y)<.001||Math.abs((c.y+c.h)-a.y)<.001;
+   const overlapX=Math.min(a.x+a.w,c.x+c.w)-Math.max(a.x,c.x);
+   return (touchX&&overlapY>Math.min(a.h,c.h)*.35)||(touchY&&overlapX>Math.min(a.w,c.w)*.35);
+ };
+ if(continuity) for(const b of boards){
+   for(let i=0;i<b.parts.length;i++)for(let j=i+1;j<b.parts.length;j++){
+     const a=b.parts[i],c=b.parts[j];
+     if(touch(a,c))adj++;
+     const names=[String(a.name||''),String(c.name||'')].sort().join('|');
+     if((names.includes('桌面')||names.includes('檯面'))&&(names.includes('前立')||names.includes('前板'))&&touch(a,c)) islandJoin++;
+     if((names.includes('側板')||names.includes('左側')||names.includes('右側'))&&
+        (names.includes('桌面')||names.includes('檯面')||names.includes('前立')||names.includes('前板'))&&touch(a,c)) islandJoin++;
+   }
+ }
+ return {count,util,adj,islandJoin};
+}
+function makePatternBoardHTML(board,bi,W,H,trim,patternImageData){
+ const bw=Math.max(320,Math.min(820,W*2)),bh=Math.max(180,Math.min(430,H*2));
+ let html=`<div class="card pattern-result"><h3>第 ${bi+1} 片大板</h3><div style="overflow:auto"><div class="pattern-board" style="width:${bw}px;height:${bh}px">${patternImageData?`<img src="${patternImageData}" alt="大板花紋">`:''}`;
+ for(const p of board.parts){
+  const left=(trim+p.x)/W*bw,top=(trim+p.y)/H*bh,ww=p.w/W*bw,hh=p.h/H*bh;
+  // 以原板圖片座標顯示花紋，固定方向時不旋轉背景，讓紋路位置可直接追蹤。
+  const bg=patternImageData?`background-image:url('${patternImageData}');background-size:${bw}px ${bh}px;background-position:${-left}px ${-top}px;background-repeat:no-repeat;`:'';
+  html+=`<div class="pattern-cut" style="left:${left}px;top:${top}px;width:${ww}px;height:${hh}px;${bg}"><div class="cut-label">${p.name}<br>${fmt(p.w)} × ${fmt(p.h)} cm${p.rot?' · ↻90°':''}</div></div>`;
+ }
+ for(const r of board.free.filter(r=>r.w>=20&&r.h>=20)){
+  const left=(trim+r.x)/W*bw,top=(trim+r.y)/H*bh,ww=r.w/W*bw,hh=r.h/H*bh;
+  html+=`<div class="pattern-remnant" style="left:${left}px;top:${top}px;width:${ww}px;height:${hh}px">餘料<br>${fmt(r.w)} × ${fmt(r.h)}</div>`;
+ }
+ html+=`</div></div><div class="formula">紋路來源：原始大板圖片　｜　配料數：${board.parts.length} 件</div></div>`;
+ return html;
+}
+function cropPatternThumb(p,W,H){
+ // 使用同一張原板圖的背景定位方式做預覽，確保縮圖仍對應原板紋路。
+ return `<div style="position:relative;height:92px;background:#f8fafc;border:1px solid #dbe3ec;border-radius:10px;overflow:hidden"><div style="position:absolute;inset:0;background-image:url('${patternImageData}');background-size:100% 100%;background-position:center;filter:saturate(.96)"></div><div style="position:absolute;inset:0;border:2px solid #dc2626;pointer-events:none"></div><div style="position:absolute;left:5px;bottom:5px;background:#fffddcdd;border-radius:6px;padding:2px 5px;font-size:10px;font-weight:900">${p.name} ${fmt(p.w)}×${fmt(p.h)}</div></div>`;
+}
+function loadImageData(src){
+ return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});
+}
+async function buildPatternCaseImage(best,W,H,trim,patternImageData){
+ if(!patternImageData)return null;
+ const img=await loadImageData(patternImageData), boards=best.boards||[];
+ const cols=2,bw=680,bh=Math.round(bw*H/W),gx=35,gy=55,top=115;
+ const rows=Math.max(1,Math.ceil(boards.length/cols));
+ let detail=0; boards.forEach(b=>{detail+=70+(b.parts||[]).length*22+(b.free||[]).filter(r=>r.w>=20&&r.h>=20).length*20+30});
+ const cw=50+cols*bw+(cols-1)*gx+50, ch=Math.max(1000,top+rows*(bh+gy)+detail+230);
+ const c=document.createElement('canvas');c.width=cw;c.height=ch;const ctx=c.getContext('2d');
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);
+ ctx.fillStyle='#0f2745';ctx.font='900 30px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText('花紋圖裁切解說案例圖',50,45);
+ ctx.fillStyle='#475569';ctx.font='15px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText(`大板 ${fmt(W)} × ${fmt(H)} cm｜修邊 ${fmt(trim)} cm｜共 ${boards.length} 片大板｜利用率 ${fmt(best.score.util*100)}%`,50,72);
+ ctx.fillText('🔴 紅色虛線＝材料裁切線　🟡 黃框＝可用餘料　🔵 箭頭＝紋路方向',50,96);
+ boards.forEach((b,bi)=>{
+  const col=bi%cols,row=Math.floor(bi/cols),bx=50+col*(bw+gx),by=top+row*(bh+gy);
+  ctx.fillStyle='#0f2745';ctx.font='900 18px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText(`大板 ${bi+1}｜${fmt(W)} × ${fmt(H)} cm`,bx,by-12);
+  ctx.drawImage(img,bx,by,bw,bh);ctx.strokeStyle='#173f68';ctx.lineWidth=3;ctx.strokeRect(bx,by,bw,bh);
+  (b.parts||[]).forEach((p,i)=>{
+   const x=bx+(trim+p.x)/W*bw,y=by+(trim+p.y)/H*bh,w=p.w/W*bw,h=p.h/H*bh;
+   ctx.save();ctx.setLineDash([9,6]);ctx.strokeStyle='#dc2626';ctx.lineWidth=4;ctx.strokeRect(x,y,w,h);ctx.restore();
+   ctx.fillStyle='#0f2745';ctx.fillRect(x+4,y+4,Math.min(260,Math.max(90,w-8)),29);ctx.fillStyle='#fff';ctx.font='900 12px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText(`${i+1}. ${p.name||`配料${i+1}`}｜${fmt(p.w)}×${fmt(p.h)}`,x+8,y+21);
+   ctx.strokeStyle='#173f68';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+w*.25,y+h*.5);ctx.lineTo(x+w*.68,y+h*.5);ctx.stroke();ctx.fillStyle='#173f68';ctx.beginPath();ctx.moveTo(x+w*.68,y+h*.5);ctx.lineTo(x+w*.58,y+h*.5-5);ctx.lineTo(x+w*.58,y+h*.5+5);ctx.closePath();ctx.fill();
+  });
+  (b.free||[]).filter(r=>r.w>=20&&r.h>=20).forEach((r,i)=>{const x=bx+(trim+r.x)/W*bw,y=by+(trim+r.y)/H*bh,w=r.w/W*bw,h=r.h/H*bh;ctx.strokeStyle='#f59e0b';ctx.lineWidth=4;ctx.strokeRect(x,y,w,h);ctx.fillStyle='#92400e';ctx.font='900 11px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText(`餘料 ${i+1} ${fmt(r.w)}×${fmt(r.h)}`,x+4,y+16)});
+ });
+ let yy=top+rows*(bh+gy)+10;ctx.fillStyle='#0f2745';ctx.font='900 21px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText('全部材料與餘料明細',50,yy);yy+=30;
+ boards.forEach((b,bi)=>{ctx.fillStyle='#173f68';ctx.font='900 15px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText(`大板 ${bi+1}`,50,yy);yy+=22;ctx.fillStyle='#334155';ctx.font='12px system-ui,-apple-system,Noto Sans TC,sans-serif';(b.parts||[]).forEach((p,i)=>{ctx.fillText(`材料 ${i+1}｜${p.name||`配料${i+1}`}｜${fmt(p.w)}×${fmt(p.h)} cm｜位置 X ${fmt(p.x)} / Y ${fmt(p.y)}${p.rot?'｜旋轉90°':''}`,65,yy);yy+=19});const rem=(b.free||[]).filter(r=>r.w>=20&&r.h>=20);if(rem.length){ctx.fillStyle='#92400e';rem.forEach((r,i)=>{ctx.fillText(`餘料 ${i+1}｜${fmt(r.w)}×${fmt(r.h)} cm｜位置 X ${fmt(r.x)} / Y ${fmt(r.y)}`,65,yy);yy+=19})}else{ctx.fillStyle='#334155';ctx.fillText('餘料：沒有達到 20×20 cm 的可用區域',65,yy);yy+=19}yy+=12});
+ ctx.fillStyle='#475569';ctx.font='12px system-ui,-apple-system,Noto Sans TC,sans-serif';ctx.fillText(`可用區域 ${fmt(W-trim*2)} × ${fmt(H-trim*2)} cm｜所有大板、所有材料、所有可用餘料均列於本圖`,50,ch-28);
+ return c.toDataURL('image/png');
+}
+
+async function calcPatternLayout(){
+ const W=n('vL'),H=n('vD'),kerf=Math.max(0,n('vKerf')),trim=Math.max(0,n('vTrim'));const fixed=document.getElementById('vFixedVein').checked,continuity=document.getElementById('vContinuity').checked,autoRem=document.getElementById('vAutoRemnant').checked;
+ const ps=getPatternRows();
+ if(!W||!H||!ps.length)return alert('請輸入大板尺寸與至少一個花紋配料。');
+ if(W<=trim*2||H<=trim*2)return alert('修邊後的大板可用尺寸不足。');
+ if(!patternImageData && !confirm('尚未上傳花紋圖，仍要先做尺寸排版嗎？'))return;
+ const usableW=W-trim*2,usableH=H-trim*2,boardArea=usableW*usableH,totalArea=ps.reduce((a,p)=>a+p.w*p.h,0);
+ const items=ps.map((p,i)=>({...p,idx:i,area:p.w*p.h})).sort((a,b)=>b.area-a.area);
+ const orders=[items.slice(),items.slice().sort((a,b)=>Math.max(b.w,b.h)-Math.max(a.w,a.h)),items.slice().sort((a,b)=>(b.w+b.h)-(a.w+a.h)),items.slice().sort((a,b)=>b.h-a.h)];
+ const unique=[];const seen=new Set();for(const o of orders){const k=o.map(x=>x.idx).join(',');if(!seen.has(k)){seen.add(k);unique.push(o)}}
+ const totalSteps=unique.length*items.length;const start=performance.now();let done=0;setCalcProgress(0,totalSteps,start);
+ async function run(order){const boards=[];for(const item of order){let bi=-1,bc=null,bscore=null;for(let i=0;i<boards.length;i++){const c=patternPlace(boards[i],item,kerf,fixed);if(!c)continue;const sc=[c.score[0],c.score[1],c.score[2],i];if(!bscore||sc[0]<bscore[0]||(sc[0]===bscore[0]&&sc[1]<bscore[1])||(sc[0]===bscore[0]&&sc[1]===bscore[1]&&sc[2]<bscore[2])){bi=i;bc=c;bscore=sc}}
+ if(bi<0){const nb={free:[{x:0,y:0,w:usableW,h:usableH}],parts:[]};const c=patternPlace(nb,item,kerf,fixed);if(!c)return null;boards.push(patternAdd(nb,item,c))}else boards[bi]=patternAdd(boards[bi],item,bc);done++;setCalcProgress(done,totalSteps,start);await new Promise(r=>setTimeout(r,0));}return boards}
+ let best=null;for(const o of unique){const b=await run(o);if(!b)continue;const sc=patternScore(b,totalArea,boardArea,continuity);if(!best||sc.count<best.score.count||(sc.count===best.score.count&&(continuity?(sc.islandJoin>best.score.islandJoin||(sc.islandJoin===best.score.islandJoin&&sc.adj>best.score.adj)):sc.util>best.score.util))||(sc.count===best.score.count&&sc.islandJoin===best.score.islandJoin&&sc.adj===best.score.adj&&sc.util>best.score.util))best={boards:b,score:sc}}
+ if(!best)return alert('無法完成排版：有配料尺寸超過修邊後的大板可用範圍。');
+ window.patternBest=best;
+ const all=best.boards.flatMap(b=>b.parts||[]);
+ let out=`<div class="pattern-result"><div class="pattern-summary"><div class="pattern-stat"><b>${best.score.count} 片</b><span>使用大板</span></div><div class="pattern-stat"><b>${fmt(best.score.util*100)}%</b><span>總利用率</span></div><div class="pattern-stat"><b>${fmt(totalArea/10000)} m²</b><span>配料總面積</span></div><div class="pattern-stat"><b>${best.score.adj}</b><span>紋路相鄰關係</span></div></div><div class="notice" style="margin:0">${patternImageData?'已套用上傳花紋圖：每個配料依其在大板上的座標取樣，方便現場核對紋路延續。':'目前為尺寸模型排版，尚未套用實際花紋。'}</div></div>`;
+ best.boards.forEach((b,i)=>{
+   out+=makePatternBoardHTML(b,i,W,H,trim,patternImageData);
+   out+=`<div class="pattern-board-legend">
+     <span>🔴 紅色虛線＝裁切線</span>
+     <span>🔴 紅框＝可用餘料</span>
+     <span>↔ 紋路方向＝依原板座標</span>
+     <span>↻ 旋轉＝僅在允許時使用</span>
+   </div>`;
+ });
+ // ④ 把裁切線從花紋圖中「抽離」：圖片只是底圖，裁切線／編號／紋路箭頭全部位於獨立高對比圖層。
+ out+=`<div class="card pattern-result">
+   <h2>④ 各配料紋路預覽（全部材料）</h2>
+   <div class="formula">上傳圖片＝花紋底圖；紅色虛線＝真正裁切框；藍色箭頭＝紋路方向；黃色框＝可用餘料。所有標示都在花紋圖片上方，不會被圖片蓋住。</div>
+   <div class="pattern-legend-new">
+     <span class="red">🔴 紅色虛線＝裁切線</span>
+     <span class="blue">🔵 藍色箭頭＝紋路方向</span>
+     <span class="gold">🟡 黃色框＝可用餘料</span>
+   </div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
+     ${all.map((p,i)=>{
+       const bw=520,bh=Math.max(260,520*H/W);
+       const x=Math.max(0,Math.min(W-p.w,p.x)),y=Math.max(0,Math.min(H-p.h,p.y));
+       const left=x/W*bw,top=y/H*bh,ww=p.w/W*bw,hh=p.h/H*bh;
+       const arrowStyle=p.rot?'transform:rotate(90deg);transform-origin:center;':'';
+       return `<div class="pattern-cut-visual">
+         <div style="font-weight:900;color:#173f68;margin-bottom:6px">${i+1}. ${p.name}｜${fmt(p.w)} × ${fmt(p.h)} cm${p.rot?'｜↻ 90°':''}</div>
+         <div class="cut-board" style="width:min(100%,520px);height:${Math.min(320,Math.max(210,520*H/W))}px">
+           ${patternImageData?`<div class="cut-source" style="background-image:url('${patternImageData}')"></div>`:''}
+           <div class="cut-line" style="left:${left}px;top:${top}px;width:${ww}px;height:${hh}px"></div>
+           <div class="cut-label" style="left:${Math.max(2,left+4)}px;top:${Math.max(2,top+4)}px">${p.name}｜${fmt(p.w)}×${fmt(p.h)}</div>
+           <div class="vein-arrow" style="left:${Math.max(5,left+ww*.25)}px;top:${Math.max(5,top+hh*.48)}px;${arrowStyle}">紋路方向 →</div>
+         </div>
+       </div>`;
+     }).join('')}
+   </div>
+ </div>`;
+ out+=`<div class="pattern-explain"><div class="explain-card"><h3>紋路版配料重點</h3><ol class="explain-list"><li><b>以紋路連續為優先</b>：固定方向時不任意旋轉。</li><li><b>大板數量不限</b>：排不下就自動增加下一片。</li><li><b>保留原板座標</b>：每個配料的花紋取自同一張原板圖。</li><li><b>自動產生可用餘料</b>：20×20 cm 以上以紅框標示。</li></ol></div><div class="explain-card"><h3>本次計算結果</h3><div class="row"><span>固定紋路方向</span><b>${fixed?'是':'否'}</b></div><div class="row"><span>紋路接續優先</span><b>${continuity?'是':'否'}</b></div><div class="row"><span>鋸縫／修邊</span><b>${fmt(kerf)} / ${fmt(trim)} cm</b></div><div class="row"><span>配料件數</span><b>${ps.length} 件</b></div></div></div>`;
+ out+=`<div class="pattern-goals"><div class="goal"><b>① 紋路方向</b>先固定</div><div class="goal"><b>② 接續關係</b>優先</div><div class="goal"><b>③ 大板數</b>盡量少</div><div class="goal"><b>④ 可用餘料</b>自動保留</div><div class="goal"><b>⑤ 解說圖</b>自動列出使用區與餘料</div></div>`;
+ out+=`<div class="optimization-note"><b>🪨</b><span>花紋版仍以「實際上傳花紋圖」作為視覺來源。5.20 會把紋路方向、旋轉狀態與裁切資訊更清楚地標在排版結果；真正的紋路接縫仍以原板花紋座標核對，不把單純幾何相鄰誤稱為完整的電腦視覺接紋。</span></div>`;
+ document.getElementById('patternOut').innerHTML=out;
+ try{setTimeout(()=>loadEditor('pattern',window.patternBest?.boards),30)}catch(e){}
+ // 完成所有配料後，自動產出「花紋圖裁切解說案例圖」
+ document.getElementById('patternCaseOut').innerHTML=`<div class="case-image-card"><h2>⑤ 花紋圖裁切解說案例圖（全部材料）</h2><div class="case-image-wrap"><div class="empty">正在產生解說圖…</div></div></div>`;
+ try{
+   const caseData=await buildPatternCaseImage(best,W,H,trim,patternImageData);
+   if(caseData){
+     document.getElementById('patternCaseOut').innerHTML=`<div class="case-image-card"><h2>⑤ 花紋圖裁切解說案例圖（全部材料）</h2><div class="case-image-wrap"><img src="${caseData}" alt="花紋圖裁切解說案例圖"></div><div class="case-actions"><a class="secondary" download="花紋圖裁切解說案例圖.png" href="${caseData}" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">⬇ 下載解說圖</a></div><div class="case-sheet-meta">
+  <div><b>${best.score.count}</b><span>使用大板</span></div>
+  <div><b>${fmt(best.score.util*100)}%</b><span>總利用率</span></div>
+  <div><b>${fmt(kerf)} cm</b><span>鋸縫</span></div>
+  <div><b>${fmt(trim)} cm</b><span>修邊</span></div>
+</div>
+<div class="case-caption">解說圖會列出每片大板的實際使用區域、各配料位置與面積，以及達 20×20 cm 以上的餘料剩餘區域。</div></div>`;
+   }else{
+     document.getElementById('patternCaseOut').innerHTML=`<div class="case-image-card"><h2>⑤ 花紋圖裁切解說案例圖（全部材料）</h2><div class="empty">尚未上傳花紋圖，因此無法產生花紋裁切解說圖。</div></div>`;
+   }
+ }catch(e){document.getElementById('patternCaseOut').innerHTML=`<div class="case-image-card"><h2>⑤ 花紋圖裁切解說案例圖（全部材料）</h2><div class="notice">解說圖產生失敗，但排版結果已完成。請重新計算一次。</div></div>`;}
+ addHistory('花紋版','花紋版配料排版',{boardL:W,boardD:H,kerf,trim,fixed,continuity,pieces:ps.map(p=>({name:p.name,L:p.w,D:p.h,allowRotate:p.allowRotate}))},`${best.score.count}片／利用率${fmt(best.score.util*100)}%／紋路相鄰${best.score.adj}`);
+}
+addPatternRow({name:'桌面',w:320,h:80,qty:1,rotate:false});
+addPatternRow({name:'前立面',w:320,h:60,qty:1,rotate:false});
+addPatternRow({name:'後立面',w:320,h:60,qty:1,rotate:false});
+addPatternRow({name:'左側板',w:80,h:60,qty:1,rotate:false});
+addPatternRow({name:'右側板',w:80,h:60,qty:1,rotate:false});
+
+renderHistory();
+</script>
+<script>
+if('serviceWorker' in navigator && location.protocol!=='file:'){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+<script>
+const EDITORS={
+ layout:{state:{boards:[],selected:null,history:[],future:[]},root:'layoutEditorRoot',card:'layoutEditorCard',sel:'editorSelectedInfo',info:'editorBoardInfo',check:'layoutEditorCheck'},
+ pattern:{state:{boards:[],selected:null,history:[],future:[]},root:'patternEditorRoot',card:'patternEditorCard',sel:'patternEditorSelectedInfo',info:'patternEditorBoardInfo',check:'patternEditorCheck'}
+};
+function snap(s){s.history.push(JSON.parse(JSON.stringify(s.boards)));if(s.history.length>30)s.history.shift();s.future=[]}
+function drawEditor(mode){
+ const E=EDITORS[mode],s=E.state,root=document.getElementById(E.root);if(!root||!s.boards.length)return;
+ root.innerHTML='';
+ s.boards.forEach((b,bi)=>{
+  const label=document.createElement('div');label.style='font-size:11px;font-weight:900;color:#173f68;margin:6px 0';label.textContent=`大板 ${bi+1}｜${fmt(b.W)} × ${fmt(b.H)} cm｜${b.items.length} 件`;root.appendChild(label);
+  const board=document.createElement('div');board.className='board-editor';const scale=Math.min(900/b.W,620/b.H);board.style.width=b.W*scale+'px';board.style.height=b.H*scale+'px';
+  b.items.forEach((p,pi)=>{
+   const el=document.createElement('div');el.className='editor-piece'+(s.selected?.bi===bi&&s.selected?.pi===pi?' selected':'')+(p.locked?' locked':'');
+   el.style.cssText+=`left:${p.x*scale}px;top:${p.y*scale}px;width:${p.w*scale}px;height:${p.h*scale}px`;
+   el.innerHTML=`<div><div class="ep-name">${p.name}</div><div class="ep-size">${fmt(p.w)}×${fmt(p.h)} cm</div>${p.rot?'<div class="ep-rotate">↻90°</div>':''}</div>`;
+   el.onpointerdown=e=>dragEditor(e,mode,bi,pi,scale);board.appendChild(el);
+  });root.appendChild(board);
+ });
+ updateEditorInfo(mode);
+}
+function dragEditor(ev,mode,bi,pi,scale){
+ const E=EDITORS[mode],s=E.state,p=s.boards[bi].items[pi];if(p.locked)return;ev.preventDefault();snap(s);s.selected={bi,pi};
+ const sx=ev.clientX,sy=ev.clientY,ox=p.x,oy=p.y,b=s.boards[bi];
+ const move=e=>{p.x=Math.max(0,Math.min(b.W-p.w,ox+(e.clientX-sx)/scale));p.y=Math.max(0,Math.min(b.H-p.h,oy+(e.clientY-sy)/scale));drawEditor(mode)};
+ const up=()=>{removeEventListener('pointermove',move);removeEventListener('pointerup',up);drawEditor(mode)};
+ addEventListener('pointermove',move);addEventListener('pointerup',up);
+}
+function updateEditorInfo(mode){
+ const E=EDITORS[mode],s=E.state;if(!s.selected){document.getElementById(E.sel).innerHTML='尚未選取配料'}else{const p=s.boards[s.selected.bi].items[s.selected.pi];document.getElementById(E.sel).innerHTML=`<b>${p.name}</b><br>位置 ${fmt(p.x)}×${fmt(p.y)} cm<br>尺寸 ${fmt(p.w)}×${fmt(p.h)} cm<br>${p.rot?'↻ 已旋轉90°':'原方向'}${p.locked?'　🔒':''}`}
+ document.getElementById(E.info).innerHTML=s.boards.map((b,i)=>`<b>大板 ${i+1}</b> ${fmt(b.W)}×${fmt(b.H)}｜${b.items.length} 件`).join('<br>');
+}
+function rotateEditor(mode){const E=EDITORS[mode],s=E.state;if(!s.selected)return;const p=s.boards[s.selected.bi].items[s.selected.pi];if(p.locked)return;snap(s);[p.w,p.h]=[p.h,p.w];p.rot=!p.rot;p.x=Math.min(p.x,s.boards[s.selected.bi].W-p.w);p.y=Math.min(p.y,s.boards[s.selected.bi].H-p.h);drawEditor(mode)}
+function moveEditor(mode,d){const E=EDITORS[mode],s=E.state;if(!s.selected)return;const from=s.selected.bi,to=from+d;if(to<0||to>=s.boards.length)return;const p=s.boards[from].items[s.selected.pi];if(p.locked)return;snap(s);s.boards[from].items.splice(s.selected.pi,1);p.x=0;p.y=0;s.boards[to].items.push(p);s.selected={bi:to,pi:s.boards[to].items.length-1};drawEditor(mode)}
+function lockEditor(mode){const E=EDITORS[mode],s=E.state;if(!s.selected)return;snap(s);s.boards[s.selected.bi].items[s.selected.pi].locked=!s.boards[s.selected.bi].items[s.selected.pi].locked;drawEditor(mode)}
+function undoEditor(mode){const E=EDITORS[mode],s=E.state;if(!s.history.length)return;s.future.push(JSON.parse(JSON.stringify(s.boards)));s.boards=JSON.parse(JSON.stringify(s.history.pop()));s.selected=null;drawEditor(mode)}
+function redoEditor(mode){const E=EDITORS[mode],s=E.state;if(!s.future.length)return;s.history.push(JSON.parse(JSON.stringify(s.boards)));s.boards=JSON.parse(JSON.stringify(s.future.pop()));s.selected=null;drawEditor(mode)}
+function checkEditor(mode){const E=EDITORS[mode],s=E.state,issues=[];s.boards.forEach((b,bi)=>b.items.forEach((p,i)=>{if(p.x<0||p.y<0||p.x+p.w>b.W||p.y+p.h>b.H)issues.push(`大板${bi+1}：${p.name} 超界`);for(let j=i+1;j<b.items.length;j++){const q=b.items[j];if(!(p.x+p.w<=q.x||q.x+q.w<=p.x||p.y+p.h<=q.y||q.y+q.h<=p.y))issues.push(`大板${bi+1}：${p.name} 與 ${q.name} 重疊`)}}));const el=document.getElementById(E.check);el.style.display='block';el.className=issues.length?'editor-warning':'optimization-note';el.innerHTML=issues.length?'⚠️ '+issues.join('<br>'):'✅ 排版檢查通過，可匯出 DXF。'}
+function exportDXF(mode){const s=EDITORS[mode].state;if(!s.boards.length){alert('請先完成排版');return}let d='0\nSECTION\n2\nENTITIES\n';const L=(a,b,c,e,f,g,layer)=>d+=`0\nLINE\n8\n${layer}\n10\n${a}\n20\n${b}\n11\n${c}\n21\n${e}\n`;const T=(x,y,t)=>d+=`0\nTEXT\n8\nTEXT\n10\n${x}\n20\n${y}\n40\n3\n1\n${t}\n`;s.boards.forEach((b,i)=>{L(0,0,b.W,0,'BOARD');L(b.W,0,b.W,b.H,'BOARD');L(b.W,b.H,0,b.H,'BOARD');L(0,b.H,0,0,'BOARD');T(5,5,`BOARD ${i+1} ${b.W}x${b.H}`);b.items.forEach(p=>{L(p.x,p.y,p.x+p.w,p.y,'CUT');L(p.x+p.w,p.y,p.x+p.w,p.y+p.h,'CUT');L(p.x+p.w,p.y+p.h,p.x,p.y+p.h,'CUT');L(p.x,p.y+p.h,p.x,p.y,'CUT');T(p.x+2,p.y+4,`${p.name} ${p.w}x${p.h}${p.rot?' ROT90':''}`);if(mode==='pattern')L(p.x+p.w/2,p.y+p.h/2,p.x+p.w*.65,p.y+p.h/2,'VEIN')})});d+='0\nENDSEC\n0\nEOF';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([d],{type:'application/dxf'}));a.download=`石材_${mode==='pattern'?'花紋':'大板'}配料.dxf`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function loadEditor(mode,boards){
+ if(!Array.isArray(boards)||!boards.length)return;
+ const E=EDITORS[mode],s=E.state;
+ s.boards=boards.map((b,bi)=>{
+   const raw=Array.isArray(b.items)?b.items:(Array.isArray(b.placed)?b.placed:(Array.isArray(b.parts)?b.parts:[]));
+   return {W:Number(b.W)||0,H:Number(b.H)||0,items:raw.map((p,i)=>({name:p.name||p.item?.name||`配料${i+1}`,w:Number(p.w)||0,h:Number(p.h)||0,x:Number(p.x)||0,y:Number(p.y)||0,rot:!!p.rot,locked:false})).filter(p=>p.w>0&&p.h>0)};
+ }).filter(b=>b.W>0&&b.H>0);
+ if(!s.boards.length)return;
+ s.selected=null;s.history=[];s.future=[];
+ const card=document.getElementById(E.card);if(card)card.style.display='block';
+ drawEditor(mode);
+}
+function editorRotate(){rotateEditor('layout')}function editorMoveBoard(d){moveEditor('layout',d)}function editorToggleLock(){lockEditor('layout')}function editorUndo(){undoEditor('layout')}function editorRedo(){redoEditor('layout')}function editorCheck(){checkEditor('layout')}
+function patternEditorRotate(){rotateEditor('pattern')}function patternEditorMoveBoard(d){moveEditor('pattern',d)}function patternEditorToggleLock(){lockEditor('pattern')}function patternEditorUndo(){undoEditor('pattern')}function patternEditorRedo(){redoEditor('pattern')}function patternEditorCheck(){checkEditor('pattern')}
+</script>
+<script>
+function clearFieldError(el){if(!el)return;el.classList.remove('calc-field-error');el.parentElement?.querySelector('.input-error-hint')?.remove()}
+function markFieldError(el,msg){if(!el)return;clearFieldError(el);el.classList.add('calc-field-error');const h=document.createElement('div');h.className='input-error-hint';h.textContent='⚠ '+msg;el.parentElement?.appendChild(h)}
+function clearCalcErrors(){document.querySelectorAll('.calc-field-error').forEach(e=>e.classList.remove('calc-field-error'));document.querySelectorAll('.input-error-hint').forEach(e=>e.remove())}
+function showCalcError(msg,fields){clearCalcErrors();fields.forEach(x=>markFieldError(x.el,x.msg));document.getElementById('calcErrorMessage').textContent=msg;const u=document.getElementById('calcErrorList');u.innerHTML='';fields.forEach(x=>{const li=document.createElement('li');li.textContent=x.msg;u.appendChild(li)});document.getElementById('calcErrorModal').classList.add('show');fields[0]?.el?.scrollIntoView({behavior:'smooth',block:'center'})}
+function closeCalcError(){document.getElementById('calcErrorModal')?.classList.remove('show')}
+document.addEventListener('input',e=>{if(e.target.matches('input,select'))clearFieldError(e.target)})
+function chk(id,label,zero){const e=document.getElementById(id),raw=e?.value?.trim(),v=Number(raw);return(!e||raw===''||!Number.isFinite(v)||(zero?v<0:v<=0))?{el:e,msg:`${label}請輸入${zero?'0 或正數':'大於 0 的數值'}`}:null}
+function validateRemnant(){const f=[];[['rPrice','大板價格'],['rL','大板長度'],['rD','大板深度'],['rRL','餘料長度'],['rRD','餘料深度']].forEach(x=>{const q=chk(x[0],x[1]);if(q)f.push(q)});if(f.length){showCalcError('餘料價格無法計算，請先修正輸入。',f);return false}const L=+rL.value,D=+rD.value,rl=+rRL.value,rd=+rRD.value;if(!((rl<=L&&rd<=D)||(rl<=D&&rd<=L))){showCalcError('餘料尺寸超過大板可容納範圍',[{el:rRL,msg:'餘料長度超過大板尺寸'},{el:rRD,msg:'餘料深度超過大板尺寸'}]);return false}return true}
+function validateLayout(){const f=[];[['pL','大板長度'],['pD','大板深度'],['pKerf','鋸縫寬度',true],['pTrim','四周修邊',true]].forEach(x=>{const q=chk(x[0],x[1],x[2]);if(q)f.push(q)});document.querySelectorAll('#piecesContainer .piece-row').forEach(r=>{const n=r.querySelectorAll('input[type="number"]'),a=n[0],b=n[1];if(!a.value&&!b.value)return;if(!a.value||!b.value)f.push({el:!a.value?a:b,msg:`配料 ${r.dataset.piece} 長度與深度要一起輸入`});});if(f.length){showCalcError('大板配料無法執行，請先修正輸入。',f);return false}clearCalcErrors();return true}
+function validatePattern(){const f=[];[['vL','大板長度'],['vD','大板深度'],['vKerf','鋸縫寬度',true],['vTrim','四周修邊',true]].forEach(x=>{const q=chk(x[0],x[1],x[2]);if(q)f.push(q)});document.querySelectorAll('#patternRows tr').forEach((r,i)=>{const a=r.querySelector('[data-k="w"]'),b=r.querySelector('[data-k="h"]');if(!a.value&&!b.value)return;if(!a.value||!b.value)f.push({el:!a.value?a:b,msg:`第 ${i+1} 筆配料長度與深度要一起輸入`})});if(f.length){showCalcError('花紋版配料無法執行，請先修正輸入。',f);return false}clearCalcErrors();return true}
+</script>
+<script>function validateSimpleLoss(){const f=[];[['len','材料長度'],['unit','材料單價'],['lossRate','損耗率'],['sale','板材售價']].forEach(x=>{const q=chk(x[0],x[1],false);if(q)f.push(q)});const r=document.getElementById('lossRate');if(r&&r.value!==''&&(Number(r.value)<0||Number(r.value)>100))f.push({el:r,msg:'損耗率必須 0～100'});if(f.length){showCalcError('大板價格應用率無法執行，請先修正輸入。',f);return false}clearCalcErrors();return true}</script></body></html>
