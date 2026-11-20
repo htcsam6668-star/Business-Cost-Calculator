@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#111827">
 <title>加工廠業務用｜加工成本計算</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
 :root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--danger:#dc2626}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
@@ -338,6 +335,16 @@ header,
 body{
   padding-top:0 !important;
 }
+#remnantLineDialog{width:min(460px,calc(100% - 24px));max-height:calc(100% - 24px);padding:18px;border:1px solid #dbe3ec;border-radius:16px;color:#111827}
+#remnantLineDialog::backdrop{background:#0f172a88}
+.line-message-fields{margin:0;padding:8px 10px;border:1px solid #dbe3ec;border-radius:10px}
+.line-message-fields legend{font-size:13px;color:#334155}
+#remnantLineFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px}
+#remnantLineFields label{display:flex;align-items:center;gap:6px;min-height:34px;margin:0;font-size:14px;color:#334155}
+#remnantLineFields input{width:auto;accent-color:#173f68}
+#remnantLinePreview{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;line-height:1.6}
+#remnantLineDialog .line-confirm{background:#087838;border-color:#087838;color:#fff}
+#remnantLineDialog .line-confirm:disabled{opacity:.45}
 </style>
 <style>
 .calc-field-error{border-color:#dc2626!important;background:#fff7f7!important;box-shadow:0 0 0 3px #fecaca66!important}
@@ -687,9 +694,9 @@ body{padding-top:0!important}
 </style><body>
 <div id="calcLoading"><div class="loading-box layout-loading-box"><div class="spinner"></div><div id="loadingTitle" class="loading-text">正在計算中…</div><div id="calcProgressBar" class="progress-track"><div id="calcProgressBarInner" class="progress-bar"></div></div><div id="loadingProgress" class="loading-progress">準備開始</div><div id="loadingEta" class="loading-eta">預估剩餘時間：計算中…</div></div></div>
 <header style="display:none!important"></header>
-<nav><button class="active" data-page="remnant">餘料</button><button class="" data-page="loss">應用率</button></nav>
+<nav><button class="active" data-page="remnant">餘料</button><button class="" data-page="loss">應用率</button><button data-page="reversePrice">每公分單價反推</button></nav>
 <div class="app-bottom-nav" id="appBottomNav">
-  <button class="app-tab active" data-page="remnant"><span class="txt">餘料</span></button><button class="app-tab " data-page="loss"><span class="txt">應用率</span></button>
+  <button class="app-tab active" data-page="remnant"><span class="txt">餘料</span></button><button class="app-tab " data-page="loss"><span class="txt">應用率</span></button><button class="app-tab" data-page="reversePrice"><span class="txt">每公分單價反推</span></button>
 </div>
 <main>
 <section id="remnant" class="page active">
@@ -713,6 +720,18 @@ body{padding-top:0!important}
 <div class="formula">長度、深度皆以 cm 輸入；大板價格 ÷ 大板面積 × 餘料面積。才數以 1 才 ≈ 30.3 × 30.3 cm 計算。</div>
 <button class="primary" onclick="if(validateRemnant())runCalc(calcRemnant)">計算並儲存</button><div id="rOut"></div>
 <div class="line-share-wrap"><button type="button" class="line-share-btn" onclick="shareRemnantLine()">💬 一鍵產生 LINE 訊息</button></div></div>
+<dialog id="remnantLineDialog" aria-labelledby="remnantLineTitle">
+  <h2 id="remnantLineTitle">預覽 LINE 訊息</h2>
+  <fieldset class="line-message-fields">
+    <legend>勾選要包含的內容</legend>
+    <div id="remnantLineFields"></div>
+  </fieldset>
+  <pre id="remnantLinePreview" class="result" aria-live="polite"></pre>
+  <div class="actions">
+    <form method="dialog"><button class="secondary">關閉</button></form>
+    <button type="button" class="secondary line-confirm" id="remnantLineOpen">開啟 LINE</button>
+  </div>
+</dialog>
 </section><section id="loss" class="page">
 <div class="card">
 <style>
@@ -739,17 +758,28 @@ body{padding-top:0!important}
   line-height:1.35 !important;
 }
 .result .row b{font-weight:800 !important}
-.loss-results .loss-row,.loss-results .loss-name,.loss-results .loss-row strong,.loss-results .loss-unit{
-  font-size:18px !important;
-  line-height:1.35 !important;
+.application-results{margin-top:22px;padding:16px;background:#f8fafc;border:1px solid #dbe5ef;border-radius:16px;color:#0f2745}
+.application-results h2{margin:0 0 8px;font-size:16px;color:#0f2745}
+.application-metrics{margin:0}
+.application-metric{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,max-content);align-items:center;gap:8px 12px;min-height:48px;padding:9px 2px;border-bottom:1px solid #e0e8f0}
+.application-metric dt{font-size:14px;font-weight:650;line-height:1.4;overflow-wrap:anywhere}
+.application-metric dd{display:grid;grid-template-columns:minmax(0,1fr) 3.2rem;align-items:baseline;gap:7px;margin:0;font-variant-numeric:tabular-nums}
+.application-metric strong{font-size:17px;line-height:1.2;text-align:right;overflow-wrap:anywhere}
+.application-metric dd span{font-size:12px;color:#52647a;white-space:nowrap}
+.application-metric.featured{margin-top:8px;padding:12px 10px;border:1px solid #d2e3f8;border-radius:10px;background:#edf5ff}
+.application-metric.featured strong{font-size:20px;color:#173f68}
+.application-metric.rate{background:#173f68;border-color:#173f68;color:#fff}
+.application-metric.rate strong{color:#fff}
+.application-metric.rate dd span{color:#dbeafe}
+.application-detail{margin-top:12px;padding-top:10px;border-top:1px solid #e0e8f0;color:#52647a;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.application-detail:empty{display:none}
+@media(max-width:420px){
+  .application-results{padding:12px}
+  .application-metric{column-gap:8px}
+  .application-metric.featured{padding-inline:8px}
+  .application-metric dd{grid-template-columns:minmax(0,1fr) 2.8rem;gap:5px}
+  .application-metric.featured strong{font-size:18px}
 }
-.loss-results .loss-row-main,.loss-results .loss-row-main .loss-name,.loss-results .loss-row-main strong{
-  min-height:60px !important;
-  font-size:18px !important;
-}
-.loss-results .loss-row strong{font-weight:800 !important}
-.loss-results .loss-unit{white-space:nowrap !important}
-.loss-detail{font-size:13px !important}
 
 /* 5.18 全系統介面統一：以花紋版配料的資訊層級為基準 */
 .page-head{background:linear-gradient(135deg,#0f2745,#173f68);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 4px 14px #0000000d}.page-head h2{margin:0 0 4px;font-size:20px}.page-head p{margin:0;color:#dbeafe;font-size:12px;line-height:1.6}.section-label{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;font-size:11px;font-weight:900;color:#1e3a5f}.section-label b{background:#1e3a5f;color:#fff;border-radius:99px;padding:3px 7px}.standard-card{border:1px solid #dbe3ec;border-radius:16px;box-shadow:0 3px 12px #00000008}.standard-card h2{color:#173f68}.standard-card .primary{background:#173f68}.standard-card .primary:hover{background:#0f2745}.case-image-card{margin-top:12px;border:1px solid #dbe3ec;border-radius:16px;background:#fff;padding:12px}.case-image-wrap{border:1px solid #cbd5e1;border-radius:12px;overflow:auto;background:#f8fafc}.case-image-wrap img{display:block;width:100%;height:auto}.case-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.case-actions button{min-height:44px}.case-caption{font-size:12px;color:#64748b;line-height:1.6;margin-top:8px}.feature-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.feature-chip{border:1px solid #dbe3ec;background:#f8fafc;border-radius:12px;padding:9px;text-align:center;font-size:11px;color:#334155}.feature-chip b{display:block;font-size:13px;color:#173f68;margin-bottom:3px}@media(max-width:620px){.feature-strip{grid-template-columns:1fr 1fr}.page-head{padding:14px}.page-head h2{font-size:18px}}
@@ -790,17 +820,36 @@ body{padding-top:0!important}
 <button class="loss-btn calc" onclick="if(validateSimpleLoss())runCalc(calcLossOriginal)">計算</button>
 <button class="loss-btn clear" onclick="clearLossOriginal()">清除</button>
 
-<div class="loss-results">
-  <div class="loss-row"><span class="loss-name">總長度</span><strong id="r1">—</strong><span class="loss-unit">公分</span></div>
-  <div class="loss-row"><span class="loss-name">每片收益</span><strong id="r2">—</strong><span class="loss-unit">元</span></div>
-  <div class="loss-row"><span class="loss-name">收益損耗</span><strong id="r3">—</strong><span class="loss-unit">元</span></div>
-  <div class="loss-row"><span class="loss-name">板材占比</span><strong id="r4">—</strong><span class="loss-unit">%</span></div>
-  <div class="loss-row loss-row-main"><span class="loss-name">加工實際收益</span><strong id="r5">—</strong><span class="loss-unit">元</span></div>
-  <div class="loss-row"><span class="loss-name">每公分代工費</span><strong id="r6">—</strong><span class="loss-unit">元/cm</span></div>
-  <div class="loss-detail" id="detail"></div>
+<div class="application-results" aria-labelledby="applicationResultsTitle">
+  <h2 id="applicationResultsTitle">計算結果</h2>
+  <dl class="application-metrics">
+    <div class="application-metric"><dt>總長度</dt><dd><strong id="r1">—</strong><span>公分</span></dd></div>
+    <div class="application-metric"><dt>可產生總額</dt><dd><strong id="r2">—</strong><span>元</span></dd></div>
+    <div class="application-metric"><dt>扣損耗總額</dt><dd><strong id="r3">—</strong><span>元</span></dd></div>
+    <div class="application-metric"><dt>材料成本佔比</dt><dd><strong id="r4">—</strong><span>%</span></dd></div>
+    <div class="application-metric featured"><dt>扣材料後利潤</dt><dd><strong id="r5">—</strong><span>元</span></dd></div>
+    <div class="application-metric featured rate"><dt>每公分最低代工費用</dt><dd><strong id="r6">—</strong><span>元/cm</span></dd></div>
+  </dl>
+  <div class="application-detail" id="detail"></div>
 </div>
 <div class="line-share-wrap"><button type="button" class="line-share-btn" onclick="shareLossLine()">💬 一鍵產生 LINE 訊息</button></div>
 </div>
+</section>
+<section id="reversePrice" class="page">
+  <div class="page-head"><h2>每公分單價反推</h2><p>依損耗率和要保留的加工費，試算每片板材可接受的最高價格。</p></div>
+  <div class="card standard-card">
+    <form id="reversePriceForm">
+      <div class="grid">
+        <div><label for="reverseSale">每公分售價（元/cm）</label><input id="reverseSale" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 10" required></div>
+        <div><label for="reverseLength">材料長度（cm）</label><input id="reverseLength" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 100" required></div>
+        <div><label for="reverseLoss">損耗率（%）</label><input id="reverseLoss" type="number" inputmode="decimal" min="0" max="100" step="any" placeholder="例如 20" required></div>
+        <div><label for="reverseLabor">要保留的每公分加工費（元/cm）</label><input id="reverseLabor" type="number" inputmode="decimal" min="0" step="any" placeholder="例如 6" required></div>
+      </div>
+      <p class="formula">沿用應用率的算法，總長度為材料長度 × 2。若只試算不保留加工費的上限，加工費填 0。</p>
+      <button type="submit" class="primary">反推材料價格</button>
+    </form>
+    <div id="reversePriceResult" role="status"></div>
+  </div>
 </section>
 </main>
 <script>
@@ -832,16 +881,16 @@ function calcLossOriginal(){
 
   // 1. 總長度 = 材料長度 × 2
   const v1=len*2;
-  // 2. 每片收益 = 第1項 × 單價
+  // 2. 可產生總額 = 第1項 × 單價
   const v2=v1*unit;
-  // 3. 收益損耗 = 第2項 × (1-損耗率)
+  // 3. 扣損耗總額 = 第2項 × (1-損耗率)
   const v3=v2*(1-rate/100);
-  // 4. 板材占比 = 板材售價 ÷ 第3項
+  // 4. 材料成本佔比 = 板材售價 ÷ 第3項
   const v4=v3 ? sale/v3 : 0;
-  // 5. 加工實際收益 = 第3項 − 板材售價
+  // 5. 扣材料後利潤 = 第3項 − 板材售價
   const v5=v3-sale;
-  // 6. 每公分代工費 = 收益損耗 ÷ 總長度
-  const v6=v3/v1;
+  // 6. 每公分最低代工費用 = 扣材料後利潤 ÷ 總長度
+  const v6=v5/v1;
 
   document.getElementById('r1').textContent=fmt(v1);
   document.getElementById('r2').textContent=fmt(v2);
@@ -851,14 +900,14 @@ function calcLossOriginal(){
   document.getElementById('r6').textContent=fmt(v6);
 
   document.getElementById('detail').textContent=
-    `① ${fmt(len)} × 2 = ${fmt(v1)}　② ${fmt(v1)} × ${fmt(unit)} = ${fmt(v2)}　③ ${fmt(v2)} × (1-${fmt(rate)}%) = ${fmt(v3)}　④ ${fmt(sale)} ÷ ${fmt(v3)} = ${fmt(v4*100)}%　⑤ ${fmt(v3)} − ${fmt(sale)} = ${fmt(v5)}　⑥ ${fmt(v3)} ÷ ${fmt(v1)} = ${fmt(v6)} 元/cm`;
+    `① ${fmt(len)} × 2 = ${fmt(v1)}　② ${fmt(v1)} × ${fmt(unit)} = ${fmt(v2)}　③ ${fmt(v2)} × (1-${fmt(rate)}%) = ${fmt(v3)}　④ ${fmt(sale)} ÷ ${fmt(v3)} = ${fmt(v4*100)}%　⑤ ${fmt(v3)} − ${fmt(sale)} = ${fmt(v5)}　⑥ ${fmt(v5)} ÷ ${fmt(v1)} = ${fmt(v6)} 元/cm`;
 
   addHistory('損耗','',{len,unit,rate,sale},
-    `第3項 $${fmt(v3)}／板材占比 ${fmt(v4*100)}%／加工實際收益 $${fmt(v5)}／代工費 ${fmt(v6)}元/cm`);
+    `扣損耗總額 $${fmt(v3)}／材料成本佔比 ${fmt(v4*100)}%／扣材料後利潤 $${fmt(v5)}／每公分最低代工費用 ${fmt(v6)}元/cm`);
 }
 function clearLossOriginal(){
  ['len','unit','lossRate','sale'].forEach(id=>document.getElementById(id).value='');
- ['r1','r2','r3','r4','r5'].forEach(id=>document.getElementById(id).textContent='—');
+ ['r1','r2','r3','r4','r5','r6'].forEach(id=>document.getElementById(id).textContent='—');
  document.getElementById('detail').textContent='輸入資料後按「計算」';
 }
 
@@ -874,19 +923,25 @@ function applyBrandSize(){
  document.getElementById('rL').value=pair?pair[0]:'';
  document.getElementById('rD').value=pair?pair[1]:'';
 }
+function remnantAmounts(price,L,D,rl,rd){
+ const squareMetersPerCai=0.303*0.303;
+ const area=L*D/10000, rem=rl*rd/10000;
+ const pricePerM2=price/area;
+ return {area,rem,cai:rem/squareMetersPerCai,val:pricePerM2*rem,pricePerM2,pricePerCai:pricePerM2*squareMetersPerCai};
+}
 function calcRemnant(){
  const price=n('rPrice'),L=n('rL'),D=n('rD'),rl=n('rRL'),rd=n('rRD');
  if(!price||!L||!D||!rl||!rd)return alert('請輸入大板價格與完整尺寸');
- const area=L*D/10000, rem=rl*rd/10000, pricePerM2=price/area, val=pricePerM2*rem, cai=rem/(0.303*0.303);
- document.getElementById('rOut').innerHTML=`<div class="result"><div class="big">$${money(val)}</div><div class="row"><span>大板面積</span><b>${fmt(area)} m²</b></div><div class="row"><span>餘料面積</span><b>${fmt(rem)} m²</b></div><div class="row"><span>餘料才數</span><b>${fmt(cai)} 才</b></div><div class="row"><span>佔原板材比例</span><b>${fmt(rem/area*100)}%</b></div></div>`;
+ const {area,rem,cai,val,pricePerM2,pricePerCai}=remnantAmounts(price,L,D,rl,rd);
+ document.getElementById('rOut').innerHTML=`<div class="result"><div class="formula">餘料價格</div><div class="big">$${money(val)}</div><div class="row"><span>大板面積</span><b>${fmt(area)} m²</b></div><div class="row"><span>餘料面積</span><b>${fmt(rem)} m²</b></div><div class="row"><span>餘料才數</span><b>${fmt(cai)} 才</b></div><div class="row"><span>每平方公尺價格</span><b>$${fmt(pricePerM2)} / m²</b></div><div class="row"><span>每才價格</span><b>$${fmt(pricePerCai)} / 才</b></div><div class="row"><span>佔原板材比例</span><b>${fmt(rem/area*100)}%</b></div></div>`;
  const brand=document.getElementById('rBrand').selectedOptions[0]?.text || '';
  addHistory('餘料',brand,{price,L,D,rl,rd},`${fmt(cai)}才／$${money(val)}`);
 }
 function calcLoss(){
  const len=n('lLen'),unit=n('lUnit'),rate=n('lRate')/100,board=n('lBoard');
  const total=len*2, revenue=(len/100)*unit, loss=revenue*rate, ratio=loss?board/loss*100:0, actual=loss-board;
- document.getElementById('lOut').innerHTML=`<div class="result"><div class="row"><span>① 總長度</span><b>${total.toFixed(2)}</b></div><div class="row"><span>② 每片收益</span><b>$${money(revenue)}</b></div><div class="row"><span>③ 收益損耗</span><b>$${money(loss)}</b></div><div class="row"><span>④ 板材占比</span><b>${ratio.toFixed(2)}%</b></div><div class="row"><span>⑤ 加工實際收益</span><b>$${money(actual)}</b></div></div>`;
- addHistory('損耗','',{len,unit,rate,board},`加工實際收益 $${money(actual)}`);
+ document.getElementById('lOut').innerHTML=`<div class="result"><div class="row"><span>① 總長度</span><b>${total.toFixed(2)}</b></div><div class="row"><span>② 可產生總額</span><b>$${money(revenue)}</b></div><div class="row"><span>③ 扣損耗總額</span><b>$${money(loss)}</b></div><div class="row"><span>④ 材料成本佔比</span><b>${ratio.toFixed(2)}%</b></div><div class="row"><span>⑤ 扣材料後利潤</span><b>$${money(actual)}</b></div></div>`;
+ addHistory('損耗','',{len,unit,rate,board},`扣材料後利潤 $${money(actual)}`);
 }
 function calcQuote(){
  const p=n('qPrice'),cost=n('qBoard')+n('qProcess')+n('qShip')+n('qOther'),profit=p-cost,margin=p?profit/p*100:0;
@@ -1317,11 +1372,47 @@ function openLineMessage(message){
   window.open(url,'_blank','noopener');
 }
 function shareRemnantLine(){
-  const brand=document.getElementById('rBrand')?.selectedOptions[0]?.text||'未指定品牌';
+  if(!validateRemnant())return;
+  const brand=document.getElementById('rBrand').selectedOptions[0]?.text||'未指定品牌';
   const price=n('rPrice'),L=n('rL'),D=n('rD'),rl=n('rRL'),rd=n('rRD');
-  if(!price||!L||!D||!rl||!rd)return alert('請先完成餘料價格計算。');
-  const area=L*D/10000,rem=rl*rd/10000,val=price/area*rem,cai=rem/(.303*.303);
-  openLineMessage(`【餘料價格計算】\n品牌：${brand}\n大板：${fmt(L)} × ${fmt(D)} cm\n餘料：${fmt(rl)} × ${fmt(rd)} cm\n餘料面積：${fmt(rem)} m²\n餘料才數：約 ${fmt(cai)} 才\n餘料價格：$${money(val)}\n原板比例：${fmt(rem/area*100)}%`);
+  const {area,rem,cai,val,pricePerM2,pricePerCai}=remnantAmounts(price,L,D,rl,rd);
+  const fields=[
+    ['品牌',brand],
+    ['大板',`${fmt(L)} × ${fmt(D)} cm`],
+    ['餘料',`${fmt(rl)} × ${fmt(rd)} cm`],
+    ['餘料價格',`$${money(val)}`],
+    ['餘料才數',`約 ${fmt(cai)} 才`],
+    ['餘料面積',`${fmt(rem)} m²`],
+    ['原板比例',`${fmt(rem/area*100)}%`],
+    ['每平方公尺價格',`$${fmt(pricePerM2)} / m²`],
+    ['每才價格',`$${fmt(pricePerCai)} / 才`]
+  ];
+  const dialog=document.getElementById('remnantLineDialog');
+  const options=document.getElementById('remnantLineFields');
+  const preview=document.getElementById('remnantLinePreview');
+  const openButton=document.getElementById('remnantLineOpen');
+  const selected=new Set(['品牌','大板','餘料','餘料價格']);
+  function updatePreview(){
+    const lines=fields.filter(([label])=>selected.has(label)).map(([label,value])=>`${label}：${value}`);
+    preview.textContent=['【餘料價格計算】',...lines].join('\n');
+    openButton.disabled=!lines.length;
+  }
+  options.replaceChildren(...fields.map(([name])=>{
+    const label=document.createElement('label');
+    const checkbox=document.createElement('input');
+    checkbox.type='checkbox';
+    checkbox.checked=selected.has(name);
+    checkbox.addEventListener('change',()=>{
+      if(checkbox.checked)selected.add(name);
+      else selected.delete(name);
+      updatePreview();
+    });
+    label.append(checkbox,name);
+    return label;
+  }));
+  openButton.onclick=()=>openLineMessage(preview.textContent);
+  updatePreview();
+  dialog.showModal();
 }
 function shareLayoutLine(){
   const W=n('pL'),H=n('pD');
@@ -1343,7 +1434,7 @@ function shareLossLine(){
   const len=nLoss('len'),unit=nLoss('unit'),rate=nLoss('lossRate'),sale=nLoss('sale');
   const vals=['r1','r2','r3','r4','r5','r6'].map(id=>document.getElementById(id)?.textContent||'—');
   if(!len||!unit||!sale||!document.getElementById('r1')?.textContent||document.getElementById('r1').textContent==='—')return alert('請先完成大板價格應用率計算。');
-  openLineMessage(`【大板價格應用率】\n材料長度：${fmt(len)} cm\n材料單價：${fmt(unit)} 元/cm\n損耗率：${fmt(rate)}%\n板材售價：${fmt(sale)} 元\n\n總長度：${vals[0]} 公分\n每片收益：${vals[1]} 元\n收益損耗：${vals[2]} 元\n板材占比：${vals[3]} %\n加工實際收益：${vals[4]} 元\n每公分代工費：${vals[5]} 元/cm`);
+  openLineMessage(`【大板價格應用率】\n材料長度：${fmt(len)} cm\n材料單價：${fmt(unit)} 元/cm\n損耗率：${fmt(rate)}%\n板材售價：${fmt(sale)} 元\n\n總長度：${vals[0]} 公分\n可產生總額：${vals[1]} 元\n扣損耗總額：${vals[2]} 元\n材料成本佔比：${vals[3]} %\n扣材料後利潤：${vals[4]} 元\n每公分最低代工費用：${vals[5]} 元/cm`);
 }
 function shareHistoryLine(){
   const t=document.getElementById('hType')?.value||'';
@@ -1358,6 +1449,7 @@ function shareHistoryLine(){
 
 function renderHistory(){
   const el=document.getElementById('historyList');
+  if(!el)return;
   const q=(document.getElementById('hSearch')?.value||'').toLowerCase();
   const t=document.getElementById('hType')?.value||'';
   if(!t){el.innerHTML='<div class="empty">請先選擇要查詢的紀錄類型</div>';return}
@@ -1374,6 +1466,39 @@ function reuse(id){
  if(x.type==='損耗'){go('loss');const d=x.data;['len','unit','lossRate','sale'].forEach((id,i)=>document.getElementById(id).value=[d.len,d.unit,(d.rate??0),d.sale][i])}
 
 }
+function calculateReversePrice(sale,length,loss,labor){
+  const total=length*2;
+  const afterLoss=total*sale*(1-loss/100);
+  const reserved=total*labor;
+  return {total,afterLoss,reserved,budget:afterLoss-reserved};
+}
+const reverseForm=document.getElementById('reversePriceForm');
+const reverseResult=document.getElementById('reversePriceResult');
+reverseForm.addEventListener('input',()=>{reverseResult.textContent=''});
+reverseForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  const read=id=>document.getElementById(id).valueAsNumber;
+  const length=read('reverseLength');
+  if(length<=0){
+    reverseResult.innerHTML='<p class="notice">材料長度須大於 0。</p>';
+    return;
+  }
+  const {total,afterLoss,reserved,budget}=calculateReversePrice(read('reverseSale'),length,read('reverseLoss'),read('reverseLabor'));
+  if(![total,afterLoss,reserved,budget].every(Number.isFinite)){
+    reverseResult.innerHTML='<p class="notice">數值超出可計算的範圍，請檢查輸入。</p>';
+    return;
+  }
+  const headline=budget<0
+    ? `<div class="notice">扣損耗後的總額不足以保留指定加工費，尚差 ${fmt(-budget)} 元。</div>`
+    : `<div class="formula">每片板材價格上限（元）</div><div class="big">${fmt(budget)}</div>`;
+  reverseResult.innerHTML=`<div class="result">${headline}
+    <div class="row"><span>總長度</span><b>${fmt(total)} cm</b></div>
+    <div class="row"><span>扣損耗總額</span><b>${fmt(afterLoss)} 元</b></div>
+    <div class="row"><span>預留加工費總額</span><b>${fmt(reserved)} 元</b></div>
+    <div class="formula">板材價格上限＝扣損耗總額 − 預留加工費總額</div>
+  </div>`;
+});
+
 function go(id){
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('nav button,.app-bottom-nav .app-tab').forEach(x=>x.classList.remove('active'));
@@ -1616,11 +1741,6 @@ addPatternRow({name:'左側板',w:80,h:60,qty:1,rotate:false});
 addPatternRow({name:'右側板',w:80,h:60,qty:1,rotate:false});
 
 renderHistory();
-</script>
-<script>
-if('serviceWorker' in navigator && location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-}
 </script>
 <script>
 const EDITORS={
